@@ -1,0 +1,22 @@
+{
+  "name": "cyclic-visualizer",
+  "version": "0.0.1",
+  "description": "Cyclejs Stream & Component Visualizer",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/siassaj/cyclic-visualizer.git"
+  },
+  "author": "siavash sajjadi",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/siassaj/cyclic-visualizer/issues"
+  },
+  "homepage": "https://github.com/siassaj/cyclic-visualizer#readme",
+  "dependencies": {
+    "xstream": "^11.7.0"
+  }
+}
