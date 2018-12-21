@@ -1,0 +1,10 @@
+{"command":"open","seq": "0","arguments":{"file":"/home/sia/Filing/Cyclic-Visualizer/src/first.ts","scriptKindName":"TS"}}
+
+{"command":"open","seq":"353","arguments":{"file":"/home/sia/Filing/Cyclic-Visualizer/src/first.ts","scriptKindName":"TS"}}
+{"command":"syntacticDiagnosticsSync","seq":"516","arguments":{"file":"/home/sia/Filing/Cyclic-Visualizer/src/first.ts"}}
+{"command":"semanticDiagnosticsSync","seq":"517","arguments":{"file":"/home/sia/Filing/Cyclic-Visualizer/src/first.ts"}}
+{"command":"suggestionDiagnosticsSync","seq":"518","arguments":{"file":"/home/sia/Filing/Cyclic-Visualizer/src/first.ts"}}
+{"command":"documentHighlights","seq":"556","arguments":{"file":"/home/sia/Filing/Cyclic-Visualizer/src/first.ts","line":24,"offset":1,"filesToSearch":["/home/sia/Filing/Cyclic-Visualizer/src/first.ts"]}}
+
+
+{"command":"projectInfo","seq":"96","arguments":{"file":"/home/sia/Filing/Cyclic-Visualizer/src/first.ts","needFileNameList":null}}

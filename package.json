@@ -27,8 +27,10 @@
   },
   "homepage": "https://github.com/siassaj/cyclic-visualizer#readme",
   "dependencies": {
+    "@cycle/run": "^5.2.0",
     "@types/chrome": "^0.0.76",
     "browserify": "^16.2.3",
+    "flatted": "^2.0.0",
     "xstream": "^11.7.0"
   },
   "devDependencies": {

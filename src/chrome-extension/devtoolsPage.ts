@@ -12,6 +12,7 @@ interface Message {
 }
 
 function handleContentScriptMessage(message: Message, port: chrome.runtime.Port) {
+  console.log("Devtool message", message)
 }
 
 function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPanel) {
