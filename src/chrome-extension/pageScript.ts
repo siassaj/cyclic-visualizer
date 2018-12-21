@@ -1,8 +1,7 @@
-import makeDevtoolDriver  from './pageScript/devtoolDriver'
-import makeAppSinksDriver from './pageScript/appSinksDriver'
-import { run }            from '@cycle/run'
-import main               from './pageScript/app/main'
-import { CycleConfig }    from './pageScript/appSinksDriver'
+import makeDevtoolDriver                   from './pageApp/devtoolDriver'
+import makeAppSinksDriver, { CycleConfig } from './pageApp/appSinksDriver'
+import { run }                             from '@cycle/run'
+import main                                from './pageApp/main'
 
 const cycleJs: CycleConfig = (<any>window)["Cyclejs"]
 

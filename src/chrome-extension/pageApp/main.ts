@@ -1,6 +1,6 @@
 import xs, { Stream, Operator }                          from 'xstream'
-import { Sinks as AppSinks, Message as AppSinksMessage } from 'chrome-extension/pageScript/appSinksDriver'
-import { Message as DevtoolMessage, Graph }              from 'chrome-extension/pageScript/devtoolDriver'
+import { Sinks as AppSinks, Message as AppSinksMessage } from './appSinksDriver'
+import { Message as DevtoolMessage, Graph }              from './devtoolDriver'
 import {
   filter,
   compact,
@@ -79,7 +79,7 @@ function detectGraphChanges(stack: OperatorStack): Stream<OperatorStack> {
 function makeGraph(stack: OperatorStack): Graph {
   return {
     payload: {
-      operators: stack 
+      operators: stack
     }
   }
 }
