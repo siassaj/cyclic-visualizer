@@ -4,38 +4,40 @@ export type Sinks = {
   [key: string]: Stream<any>
 }
 
-interface CycleConfig {
+export interface CycleConfig {
   adaptStream: any,
   sinks: Sinks
 }
 
-export interface Action {
+export interface Message {
   action: "fetch"
 }
 
-export default function appSinksDriver(cycleConfig: CycleConfig) {
-  return function(sink$: Stream<Action>): Stream<Sinks> {
 
-    let sinkListener: any
+function innerDriver(cycleConfig: CycleConfig, sink$: Stream<Message>): Stream<Sinks> {
+  let sinkListener: any
 
-    return xs.create({
-      start: listener => {
-        listener.next(cycleConfig.sinks)
+  return xs.create({
+    start: listener => {
+      listener.next(cycleConfig.sinks)
 
-        sinkListener = {
-          next: (cfg: Action) => {
-            const action = cfg.action
+      sinkListener = {
+        next: (cfg: Message) => {
+          const action = cfg.action
 
-            if (action == "fetch") {
-              listener.next(cycleConfig.sinks)
-            }
+          if (action == "fetch") {
+            listener.next(cycleConfig.sinks)
           }
         }
+      }
 
-        sink$.addListener(sinkListener)
-      },
+      sink$.addListener(sinkListener)
+    },
 
-      stop: () => { sink$.removeListener(sinkListener) },
-    });
-  }
+    stop: () => { sink$.removeListener(sinkListener) },
+  })
+}
+
+export default function appSinksDriver(cycleConfig: CycleConfig) {
+  return (sink$: Stream<Message>): Stream<Sinks> => innerDriver(cycleConfig, sink$)
 }

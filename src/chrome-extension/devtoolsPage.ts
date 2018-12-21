@@ -1,3 +1,5 @@
+import { parse } from 'flatted'
+
 function turnOnGraph(window: Window): void {
   console.log("Turning on graph")
 }
@@ -12,7 +14,10 @@ interface Message {
 }
 
 function handleContentScriptMessage(message: Message, port: chrome.runtime.Port) {
-  console.log("Devtool message", message)
+  console.log("Message from content script", {
+    type: message.type,
+    payload: parse(message.payload)
+  })
 }
 
 function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPanel) {

@@ -2,16 +2,18 @@ import makeDevtoolDriver  from './pageScript/devtoolDriver'
 import makeAppSinksDriver from './pageScript/appSinksDriver'
 import { run }            from '@cycle/run'
 import main               from './pageScript/app/main'
-import { parse, stringify } from 'flatted'
+import { CycleConfig }    from './pageScript/appSinksDriver'
+
+const cycleJs: CycleConfig = (<any>window)["Cyclejs"]
 
 window.postMessage({
   action: "identifyCyclejsApp",
-  payload: window["Cycljs"] ? true : false
+  payload: cycleJs ? true : false
 }, '*')
 
-if (window["Cyclejs"]) {
+if (cycleJs) {
   run(main, {
-    appSinks: makeAppSinksDriver(window["Cyclejs"]),
+    appSinks: makeAppSinksDriver(cycleJs),
     devtool: makeDevtoolDriver(window)
   })
 }
