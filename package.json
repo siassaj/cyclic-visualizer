@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Cyclejs Stream & Component Visualizer",
   "scripts": {
-    "test": "node_modules/.bin/jest",
+    "test": "node_modules/.bin/jest --detectOpenHandles",
     "lint": "node_modules/.bin/tslint -c tslint.json .src/*.ts .src/**/*.ts",
     "cleanDist": "rm -rf dist/*",
     "copyAssets": "cp -r assets/* dist/",
@@ -27,10 +27,13 @@
   },
   "homepage": "https://github.com/siassaj/cyclic-visualizer#readme",
   "dependencies": {
+    "@cycle/http": "^15.1.0",
     "@cycle/run": "^5.2.0",
     "@types/chrome": "^0.0.76",
+    "@types/dagre": "^0.7.40",
     "@types/lodash": "^4.14.119",
     "browserify": "^16.2.3",
+    "dagre": "^0.8.4",
     "flatted": "^2.0.0",
     "jest": "^23.6.0",
     "lodash": "^4.17.11",

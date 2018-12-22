@@ -6,7 +6,7 @@ import {
   compact,
   map
 } from 'lodash'
-
+import { buildGraph } from 'buildGraph'
 
 type Sources = {
   devtool:  Stream<DevtoolMessage>,
@@ -73,6 +73,7 @@ function detectGraphChanges(stack: OperatorStack): Stream<OperatorStack> {
     map<Operator<any, any>, Stream<any>>(operatorsWithInner, (o: Operator<any, any>) => o.ins)
   )
 
+  xs.merge()
   return xs.merge( ...streams )
 }
 

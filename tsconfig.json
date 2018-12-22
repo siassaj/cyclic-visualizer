@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2015",
+    "module": "CommonJS",
     "outDir": "build",
     "rootDir": "src",
-    "lib": ["dom", "es5", "scripthost", "es2015.promise" ],
     "removeComments": false,
     "preserveConstEnums": true,
     "sourceMap": true,
@@ -19,5 +19,8 @@
     "src/chromeExtension/chromeScripts/pageScript.ts",
     "src/chromeExtension/chromeScripts/devtoolsPage.ts",
     "src/chromeExtension/chromeScripts/panel.ts",
+  ],
+  "exclude": [
+    "src/**/*.test.*"
   ]
 }

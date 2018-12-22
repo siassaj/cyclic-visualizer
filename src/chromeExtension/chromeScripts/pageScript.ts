@@ -16,3 +16,4 @@ if (cycleJs) {
     devtool: makeDevtoolDriver(window)
   })
 }
+
