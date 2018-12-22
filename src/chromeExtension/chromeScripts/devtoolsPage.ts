@@ -9,13 +9,13 @@ function turnOffGraph(): void {
 }
 
 interface Message {
-  type: "renderGraph" | "identifyCyclejsApp",
+  action: "renderGraph" | "identifyCyclejsApp",
   payload: any
 }
 
 function handleContentScriptMessage(message: Message, port: chrome.runtime.Port) {
   console.log("Message from content script", {
-    type: message.type,
+    action: message.action,
     payload: parse(message.payload)
   })
 }
@@ -29,7 +29,7 @@ function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPane
     port.postMessage({
       action: "injectContentScript",
       tabId: chrome.devtools.inspectedWindow.tabId,
-      scriptToInject: "contentScript.js"
+      scriptToInject: "chromeScripts/contentScript.js"
     })
 
     setInterval(() => port.postMessage("sending data from devtools to contentScript"), 1000)

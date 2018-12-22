@@ -1,5 +1,5 @@
-import xs, { Stream }  from 'xstream'
-import { buildGraph } from './buildGraph'
+import xs, { Stream }             from 'xstream'
+import { buildGraph, Graph }      from './buildGraph'
 import { each, map, zip, values}  from 'lodash'
 
 type State = {
@@ -54,21 +54,29 @@ function makeSinks(): Sinks {
 }
 
 describe(buildGraph, () => {
-  it('returns 2 nodes', () => {
-    const sinks = makeSinks()
-    const listeners = listen(sinks)
-    const graph = buildGraph(sinks)
-    unListen(sinks, listeners)
+  let sinks: Sinks
+  let listeners: Array<Listener>
+  let graph: Graph
 
+  beforeEach(() => {
+    sinks = makeSinks()
+    listeners = listen(sinks)
+    graph = buildGraph(sinks)
+  })
+
+  afterEach(() => {
+    unListen(sinks, listeners)
+  })
+
+  it('returns 20 nodes', () => {
     expect(graph.dagreGraph.nodes().length).toBe(20)
   })
 
-  it('returns 2 edges', () => {
-    const sinks = makeSinks()
-    const listeners = listen(sinks)
-    const graph = buildGraph(sinks)
-    unListen(sinks, listeners)
-
+  it('returns 20 edges', () => {
     expect(graph.dagreGraph.edges().length).toBe(20)
+  })
+
+  it('returns 1 flattenSourceStream', () => {
+    expect(graph.flattenSourceStreams().length).toBe(1)
   })
 })

@@ -1,7 +1,7 @@
-import { graphlib, layout }  from 'dagre'
-import { Stream, Operator }  from 'xstream'
-import { uniqBy, flowRight } from 'lodash'
-import objectId              from './objectId'
+import { graphlib, layout } from 'dagre'
+import { Stream, Operator } from 'xstream'
+import { uniq }             from 'lodash'
+import objectId             from './objectId'
 
 type CycleSource = { type: string }
 type CycleSink   = { type: string }
@@ -97,17 +97,21 @@ function registerGraphElements(this: Graph, section: Section, config: SectionGra
   this.dagreGraph.setEdge(streamNode.id, sinkNode.id)
 }
 
+function registerFlattenSourceStream(this: Graph, section: Section): void {
+  if (section.type == "inner") {
+    this._flattenSourceStreams.push(section.stream)
+  }
+}
+
 export default class Graph {
   dagreGraph: graphlib.Graph
   ownNodes: { [id: string]: GraphNode }
-  // operators: Array<{ objectId: string, operator: GOperator }>
-  // streams: Array<{ objectId: string, stream: Stream<any> }>
+  _flattenSourceStreams: Array<Stream<any>>
 
   constructor() {
     this.dagreGraph = new graphlib.Graph
     this.ownNodes = {}
-    // this.operators = []
-    // this.streams = []
+    this._flattenSourceStreams = []
   }
 
   layout(): void {
@@ -118,6 +122,7 @@ export default class Graph {
 
   register(section: Section): void {
     const graphConfig: SectionGraphConfig = registerObjectIds(section)
+    registerFlattenSourceStream.call(this, section)
     registerGraphElements.call(this, section, graphConfig)
   }
 
@@ -127,5 +132,9 @@ export default class Graph {
 
   reset(): void {
     this.ownNodes = {}
+  }
+
+  flattenSourceStreams(): Array<Stream<any>> {
+    return uniq(this._flattenSourceStreams)
   }
 }

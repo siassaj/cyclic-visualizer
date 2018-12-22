@@ -1,13 +1,10 @@
 import xs, { Producer, Listener, Stream } from 'xstream'
-import { stringify } from 'flatted'
-
-export type Graph = {
-  [key: string]: any
-}
+import { stringify }                      from 'flatted'
+import { Graph }                          from 'buildGraph'
 
 export interface Message {
   action: "setGraph",
-  payload: Graph | string
+  payload: Graph
 }
 
 interface MyListener<T> extends Producer<T> {
@@ -20,7 +17,7 @@ export default function makeDevtoolDriver(window: Window) {
 
     sink$.addListener({
       next: (message: Message) => window.postMessage({
-        action: 'messageDevtool',
+        action: message.action,
         payload: stringify(message.payload)
       }, '*')
     })
@@ -28,8 +25,8 @@ export default function makeDevtoolDriver(window: Window) {
     let listener: Listener<any>
 
     let messageListener = (e: MessageEvent): void => {
-      if (e.data.action == 'messagePageScript') {
-        listener.next(e.data.payload)
+      if (e.data.target == 'pageScript') {
+        listener.next(e.data)
       }
     }
 

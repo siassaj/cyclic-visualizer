@@ -1,6 +1,6 @@
 export default function injectPageScript() {
   const scriptElem: HTMLScriptElement = document.createElement('script')
-  const source: string = chrome.extension.getURL('./pageScript.js')
+  const source: string = chrome.extension.getURL('./chromeScripts/pageScript.js')
 
   scriptElem.src = source
 

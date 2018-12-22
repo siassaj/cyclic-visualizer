@@ -93,6 +93,8 @@ function crawlSection(section: Section, stack: Stack, graph: Graph) {
   }
 }
 
+export type Graph = Graph
+
 // Chop the streams into Sections of { sourceOperator -> stream -> sinkOperator }
 // and load into the stack, traversing the graph depth first preorder (i think)
 export function buildGraph(sinks: Sinks): Graph {
