@@ -14,10 +14,10 @@
     "baseUrl": "src",
   },
   "files": [
-    "src/chrome-extension/background.ts",
-    "src/chrome-extension/contentScript.ts",
-    "src/chrome-extension/pageScript.ts",
-    "src/chrome-extension/devtoolsPage.ts",
-    "src/chrome-extension/panel.ts",
+    "src/chromeExtension/chromeScripts/background.ts",
+    "src/chromeExtension/chromeScripts/contentScript.ts",
+    "src/chromeExtension/chromeScripts/pageScript.ts",
+    "src/chromeExtension/chromeScripts/devtoolsPage.ts",
+    "src/chromeExtension/chromeScripts/panel.ts",
   ]
 }
