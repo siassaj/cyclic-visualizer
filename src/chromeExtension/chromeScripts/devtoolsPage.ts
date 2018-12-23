@@ -1,4 +1,4 @@
-import { parse } from 'flatted'
+import { Message as PanelMessage } from  './panel'
 
 function turnOnGraph(window: Window): void {
   console.log("Turning on graph")
@@ -9,15 +9,22 @@ function turnOffGraph(): void {
 }
 
 interface Message {
-  action: "renderGraph" | "identifyCyclejsApp",
+  action: "setGraph" | "identifyCyclejsApp",
   payload: any
 }
 
-function handleContentScriptMessage(message: Message, port: chrome.runtime.Port) {
+function handleContentScriptMessage(panelWindow: Window, message: Message) {
   console.log("Message from content script", {
     action: message.action,
-    payload: parse(message.payload)
+    payload: message.payload
   })
+
+  if (message.action == "setGraph") {
+    panelWindow.postMessage(<PanelMessage>{
+      action: 'renderGraph',
+      payload: message.payload
+    }, '*')
+  }
 }
 
 function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPanel) {
@@ -33,13 +40,16 @@ function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPane
     })
 
     setInterval(() => port.postMessage("sending data from devtools to contentScript"), 1000)
+  }
 
-    port.onMessage.addListener(handleContentScriptMessage)
+  function turnOnCommunication(window: Window) {
+    port.onMessage.addListener((message: Message, _) => handleContentScriptMessage(window, message))
   }
 
   // Inject the content script once
   extensionPanel.onShown.addListener(injectContentScript)
   extensionPanel.onShown.addListener(turnOnGraph)
+  extensionPanel.onShown.addListener(turnOnCommunication)
   extensionPanel.onHidden.addListener(turnOffGraph)
 }
 

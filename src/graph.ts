@@ -83,18 +83,19 @@ function registerGraphElements(this: Graph, section: Section, config: SectionGra
     this.setNode(sourceNode)
   }
 
-  if (!this.dagreGraph.node(streamNode.id)) {
-    this.dagreGraph.setNode(streamNode.id, streamNode)
-    this.setNode(streamNode)
-  }
+  // if (!this.dagreGraph.node(streamNode.id)) {
+  //   this.dagreGraph.setNode(streamNode.id, streamNode)
+  //   this.setNode(streamNode)
+  // }
 
   if (!this.dagreGraph.node(sinkNode.id))   {
-    this.dagreGraph.setNode(sinkNode.id,   sourceNode)
+    this.dagreGraph.setNode(sinkNode.id,   sinkNode)
     this.setNode(sinkNode)
   }
 
-  this.dagreGraph.setEdge(sourceNode.id, streamNode.id)
-  this.dagreGraph.setEdge(streamNode.id, sinkNode.id)
+  this.dagreGraph.setEdge(sourceNode.id, sinkNode.id)
+  // this.dagreGraph.setEdge(sourceNode.id, streamNode.id)
+  // this.dagreGraph.setEdge(streamNode.id, sinkNode.id)
 }
 
 function registerFlattenSourceStream(this: Graph, section: Section): void {

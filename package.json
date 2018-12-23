@@ -14,8 +14,9 @@
     "distChromePanel": "NODE_PATH=$NODE_PATH:build node_modules/.bin/browserify build/chromeExtension/chromeScripts/panel.js -s panel --outfile dist/chromeExtension/chromeScripts/panel.js",
     "distChromeContentScript": "NODE_PATH=$NODE_PATH:build node_modules/.bin/browserify build/chromeExtension/chromeScripts/contentScript.js -s contentScript --outfile dist/chromeExtension/chromeScripts/contentScript.js",
     "distChromePageScript": "NODE_PATH=$NODE_PATH:build node_modules/.bin/browserify build/chromeExtension/chromeScripts/pageScript.js -s pageScript --outfile dist/chromeExtension/chromeScripts/pageScript.js",
+    "distTestApp": "NODE_PATH=$NODE_PATH:build node_modules/.bin/browserify build/testApp.js -s ptestApp --outfile dist/testApp.js",
     "distChrome": "npm run distChromeBackground && npm run distChromeDevtoolsPage && npm run distChromeContentScript && npm run distChromePageScript && npm run distChromePanel",
-    "build": "npm run cleanDist && npm run copyAssets && npm run lint && npm run compile && npm run distChrome"
+    "build": "npm run cleanDist && npm run copyAssets && npm run lint && npm run compile && npm run distChrome && npm run distTestApp"
   },
   "repository": {
     "type": "git",
@@ -31,9 +32,13 @@
     "@cycle/http": "^15.1.0",
     "@cycle/run": "^5.2.0",
     "@types/chrome": "^0.0.76",
+    "@types/cytoscape": "^3.2.9",
     "@types/dagre": "^0.7.40",
     "@types/lodash": "^4.14.119",
     "browserify": "^16.2.3",
+    "cytoscape": "^3.3.1",
+    "cytoscape-dagre": "^2.2.2",
+    "cytoscape-klay": "^3.1.2",
     "dagre": "^0.8.4",
     "flatted": "^2.0.0",
     "jest": "^23.6.0",
