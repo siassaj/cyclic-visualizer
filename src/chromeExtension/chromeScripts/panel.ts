@@ -1,11 +1,9 @@
 import * as cytoscape  from 'cytoscape'
 import * as dagre      from 'cytoscape-dagre'
-import * as klay       from 'cytoscape-klay'
 import { parse }       from 'flatted'
 import { map, each }   from 'lodash'
 
 cytoscape.use(dagre);
-cytoscape.use(klay);
 
 let cy: cytoscape.Core;
 
@@ -15,8 +13,28 @@ export type Message = {
 };
 
 function renderCytoscape(window: Window, graph: any, inputElement: HTMLTextAreaElement) {
-  console.log(graph)
-  const nodes = map(graph._nodes, (node: any) => ({data: { id: node.id, label: node.label}}))
+  const nodes = [
+    {data: { id: "cycleSources", label: "Cycle Sources" } },
+    {data: { id: "cycleSinks",   label: "Cycle Sinks" } },
+    ...map(graph._nodes, (node: any) => {
+      let parent
+      switch (node.type) {
+      case "cycleSource": {
+        parent = "cycleSources"
+        break
+      }
+      case "cycleSink": {
+        parent = "cycleSinks"
+        break
+      }
+      default: {
+        parent = node.parent
+      }
+      }
+      return {data: { id: node.id, label: node.label, type: node.type, parent: parent}}
+    })
+  ]
+
   const edges = map(graph._edgeObjs, (edge, _) => ({data: { id: `${edge.v}>${edge.w}`, source: edge.v, target: edge.w }}))
 
   const element = <HTMLElement>window.document.querySelector('.Graph')
@@ -31,28 +49,42 @@ function renderCytoscape(window: Window, graph: any, inputElement: HTMLTextAreaE
     },
     layout: {
       name: 'dagre',
+      ranker: 'network-simplex',
+      fit: false
     },
     style: [{
       selector: 'node',
       style: {
         'label': 'data(label)',
-        'background-color': '#11479e'
+        'background-color': '#77bbff'
       }
     }, {
       selector: 'edge',
       style: {
         'width': 4,
         'target-arrow-shape': 'triangle',
-        'line-color': '#9dbaea',
-        'target-arrow-color': '#9dbaea',
+        'line-color': '#dcdcdc',
+        'target-arrow-color': '#ababab',
         'curve-style': 'bezier'
       }
     }, {
-      selector: '.highlighted',
+      selector: '.highlightedPredecessor',
       style: {
-        'line-color': '#990000'
+        'line-color': '#7fffd4'
       }
-    }],
+    }, {
+      selector: '.highlightedSuccessor',
+      style: {
+        'line-color': '#f08080'
+      }
+    }, {
+      selector: ':parent',
+      style: {
+        'background-color': "#000000",
+        'background-opacity': 0.1,
+        'font-size': '45px'
+      }
+    }]
   }
 
   inputElement.value = JSON.stringify(config, null, 2)
@@ -61,12 +93,16 @@ function renderCytoscape(window: Window, graph: any, inputElement: HTMLTextAreaE
 
   cy.on('tap', 'node', (ev: cytoscape.EventObject) => {
     const node: cytoscape.NodeSingular = ev.target
-    each(cy.nodes(), (node) => node.classes(""))
-    each(cy.edges(), (edge) => edge.classes(""))
+    each(cy.nodes(), (node) => node.classes(""));
+    each(cy.edges(), (edge) => edge.classes(""));
 
     each(node.successors(), (succ) => {
-      succ.classes("highlighted")
-    })
+      succ.classes("highlightedSuccessor")
+    });
+
+    each(node.predecessors(), (predecessor) => {
+      predecessor.classes("highlightedPredecessor")
+    });
   })
 }
 
@@ -77,6 +113,7 @@ window.addEventListener("message", (ev: MessageEvent): void => {
   const message: Message = ev.data
 
   if(message.action == "renderGraph") {
+    console.log("RENDERING GRAPH")
     renderCytoscape(window, parse(message.payload).dagreGraph, configInputElement)
   }
 });

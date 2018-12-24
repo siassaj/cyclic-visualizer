@@ -11,61 +11,88 @@ type Sinks = { [k: string]: Stream<any> }
 
 type Stack = Section[]
 
-type DevtoolStream = Stream<any> & { _isCycleSource?: string }
+type DevtoolStream = Stream<any> & { _isCycleSource?: string, _visualizeScope?: string }
 
-function buildInsSection(operator: GOperator): undefined | Section {
+type VisualizeScope = string | undefined
+
+function getVisualizeScope(stream: Stream<any>): VisualizeScope {
+  return (<DevtoolStream>stream)._visualizeScope
+}
+
+function buildInsSection(operator: GOperator, currentVisualizeScope: VisualizeScope): undefined | Section {
   if (!operator.ins) { return }
 
   const source = operator.ins._prod
   const stream = <DevtoolStream>operator.ins
+  const visualizeScope = getVisualizeScope(stream) || currentVisualizeScope
+  const predVisualizeScope = visualizeScope && currentVisualizeScope && visualizeScope != currentVisualizeScope ? currentVisualizeScope : undefined
+
+  const isCycleSource = stream._isCycleSource ? true : false
+  const isInitial = isCycleSource || isEmpty(source)
 
   return {
-    type:      "ins",
-    isInitial: isEmpty(source),
-    isFinal:   false,
-    source:    isEmpty(source) ? { type: stream._isCycleSource || ""} : <GOperator>source,
-    stream:    stream,
-    sink:      operator,
+    type:               "ins",
+    isInitial:          isInitial,
+    isFinal:            false,
+    visualizeScope:     visualizeScope,
+    predVisualizeScope: predVisualizeScope,
+    source:             isInitial ? { type: stream._isCycleSource || ""} : <GOperator>source,
+    stream:             stream,
+    sink:               operator,
   }
 }
 
-function buildInsArrSections(operator: GOperator): Array<Section> {
+function buildInsArrSections(operator: GOperator, currentVisualizeScope: VisualizeScope): Array<Section> {
   return map<DevtoolStream, Section>(operator.insArr, (stream: DevtoolStream): Section => {
     const source = stream._prod
+    const visualizeScope = getVisualizeScope(stream) || currentVisualizeScope
+    const predVisualizeScope = visualizeScope && currentVisualizeScope && visualizeScope != currentVisualizeScope ? currentVisualizeScope : undefined
+
+    const isCycleSource = stream._isCycleSource ? true : false
+    const isInitial = isCycleSource || isEmpty(source)
 
     return {
       type: "insArr",
-      isInitial: isEmpty(source),
+      isInitial: isInitial,
       isFinal: false,
-      source: isEmpty(source) ? { type: stream._isCycleSource || ""} : <GOperator>source,
+      visualizeScope: visualizeScope,
+      predVisualizeScope: predVisualizeScope,
+      source: isInitial ? { type: stream._isCycleSource || ""} : <GOperator>source,
       stream: stream,
       sink: operator
     }
   })
 }
 
-function buildInnerSection(operator: GOperator): Section | undefined {
+function buildInnerSection(operator: GOperator, currentVisualizeScope: VisualizeScope): Section | undefined {
   if (isEmpty(operator.inner)) {
     return undefined
   } else {
     const stream = <DevtoolStream>operator.inner
     const source = stream._prod
+    const visualizeScope = getVisualizeScope(stream) || currentVisualizeScope
+    const predVisualizeScope = visualizeScope && currentVisualizeScope && visualizeScope != currentVisualizeScope ? currentVisualizeScope : undefined
+
+    const isCycleSource = stream._isCycleSource ? true : false
+    const isInitial = isCycleSource || isEmpty(source)
 
     return {
       type: "inner",
-      isInitial: isEmpty(source),
+      isInitial: isInitial,
       isFinal: false,
-      source: isEmpty(source) ? { type: stream._isCycleSource || ""} : <GOperator>source,
+      visualizeScope: visualizeScope,
+      predVisualizeScope: predVisualizeScope,
+      source: isInitial ? { type: stream._isCycleSource || ""} : <GOperator>source,
       stream: stream,
       sink: operator
     }
   }
 }
 
-function buildSections(operator: GOperator): Array<Section> {
-  const insSection: Section | undefined   = buildInsSection(operator)
-  const insArrSections: Array<Section>    = buildInsArrSections(operator)
-  const innerSection: Section | undefined = buildInnerSection(operator)
+function buildSections(operator: GOperator, currentVisualizeScope: VisualizeScope): Array<Section> {
+  const insSection: Section | undefined   = buildInsSection(operator, currentVisualizeScope)
+  const insArrSections: Array<Section>    = buildInsArrSections(operator, currentVisualizeScope)
+  const innerSection: Section | undefined = buildInnerSection(operator, currentVisualizeScope)
 
   const func = flowRight<Section[], (Section | undefined)[]>(compact, flatten)
 
@@ -75,11 +102,16 @@ function buildSections(operator: GOperator): Array<Section> {
 function buildFinalSection(stream: DevtoolStream, key: string): Section {
   const source = stream._prod
 
+  const isCycleSource = stream._isCycleSource ? true : false
+  const isInitial = isCycleSource || isEmpty(source)
+
   return {
     type: "ins",
-    isInitial: isEmpty(source),
+    isInitial: isInitial,
     isFinal: true,
-    source: isEmpty(source) ? { type: stream._isCycleSource || "" } : <GOperator>source,
+    visualizeScope: getVisualizeScope(stream),
+    predVisualizeScope: undefined,
+    source: isInitial ? { type: stream._isCycleSource || "" } : <GOperator>source,
     stream: stream,
     sink: { type: key }
   }
@@ -88,8 +120,10 @@ function buildFinalSection(stream: DevtoolStream, key: string): Section {
 function crawlSection(section: Section, stack: Stack, graph: Graph) {
   graph.register(section)
 
+  const currentVisualizeScope: VisualizeScope = section.visualizeScope
+
   if (!section.isInitial) {
-    each(buildSections(<GOperator>section.source), (section: Section) => stack.push(section));
+    each(buildSections(<GOperator>section.source, currentVisualizeScope), (section: Section) => stack.push(section));
   }
 }
 
@@ -97,8 +131,7 @@ export type Graph = Graph
 
 // Chop the streams into Sections of { sourceOperator -> stream -> sinkOperator }
 // and load into the stack, traversing the graph depth first preorder (i think)
-export function buildGraph(sinks: Sinks): Graph {
-  const graph: Graph = new Graph
+export function buildGraph(graph: Graph, sinks: Sinks): Graph {
   const stack: Stack = []
 
   each(sinks, (stream: Stream<any>, key: string) => stack.push(buildFinalSection(stream, key)))
