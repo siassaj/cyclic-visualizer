@@ -38,7 +38,6 @@
     "browserify": "^16.2.3",
     "cytoscape": "^3.3.1",
     "cytoscape-dagre": "^2.2.2",
-    "cytoscape-klay": "^3.1.2",
     "dagre": "^0.8.4",
     "flatted": "^2.0.0",
     "jest": "^23.6.0",
