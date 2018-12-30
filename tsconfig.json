@@ -12,6 +12,9 @@
     "strict": true,
     "allowSyntheticDefaultImports": true,
     "baseUrl": "src",
+    "paths": {
+      "@src/*": ["*"]
+    }
   },
   "files": [
     "src/chromeExtension/chromeScripts/background.ts",
