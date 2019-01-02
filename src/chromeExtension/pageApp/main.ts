@@ -1,40 +1,43 @@
 import xs, { Stream }                                    from 'xstream'
+import dropUntil from 'xstream/extra/dropUntil'
+import debounce  from 'xstream/extra/debounce'
 import { Sinks as AppSinks, Message as AppSinksMessage } from './appSinksDriver'
-import { Message as DevtoolMessage }                     from './devtoolDriver'
+import { Message, PatchMessage  }                        from './messagingDriver'
 import { buildGraph }                                    from 'buildGraph'
+import diff                                              from 'diffGraphs'
 import Graph                                             from 'graph'
+import {map} from 'lodash'
 
 type Sources = {
-  devtool:  Stream<DevtoolMessage>;
+  messages: Stream<Message>;
   appSinks: Stream<AppSinks>;
 }
 
 type Sinks = {
-  devtool:  Stream<DevtoolMessage>;
+  messages: Stream<Message>;
   appSinks: Stream<AppSinksMessage>;
 }
 
 // Collect & merge all the in streams for operators with an inner stream. Each time the in stream fires the graph could be rebuilt, so fire
 function detectGraphChanges(graph: Graph): Stream<any> {
-  return xs.merge( ...graph.flattenSourceStreams() )
+  return xs.merge( ...graph.flattenSourceStreams()).compose(dropUntil(xs.periodic(10).take(1)))
 }
 
-type Acc = { graph: Graph }
+type Acc = { newGraph: Graph, oldGraph: Graph }
 
 function buildGraphUsingAcc(acc: Acc, sinks: AppSinks): Acc {
-  return { graph: buildGraph(acc.graph, sinks) }
+  return { newGraph: buildGraph(new Graph(), sinks), oldGraph: acc.newGraph }
 }
 
 export default function main(sources: Sources): Sinks {
-  const graph$: Stream<Graph> = sources.appSinks.fold(buildGraphUsingAcc, { graph: new Graph() })
-    .map((o: { graph: Graph }) => o.graph).debug('wtf')
+  const graphAcc$:           Stream<Acc>             = sources.appSinks.fold(buildGraphUsingAcc, { newGraph: new Graph(), oldGraph: new Graph() })
+  const graph$:              Stream<Graph>           = graphAcc$.map((acc) => acc.newGraph).debug('graph')
+  const graphChangeTrigger$: Stream<AppSinksMessage> = graph$.map(detectGraphChanges).flatten().map<AppSinksMessage>((_) => ({action: "fetch"})).compose(debounce(1000)).debug("trigger")
 
-  const graphChangeTrigger$: Stream<AppSinksMessage> = graph$.map(detectGraphChanges).flatten().map<AppSinksMessage>((_) => ({action: "fetch"})).debug("trigger")
-
-  const setGraph$: Stream<DevtoolMessage> = graph$.map((graph: Graph): DevtoolMessage => ({action: "setGraph", payload: graph}))
+  const patchGraph$ = graphAcc$.map(acc => (<PatchMessage>{ target: "panel", action: "patchGraph", payload: diff(acc.newGraph, acc.oldGraph) }))
 
   return {
-    devtool:  setGraph$,
-    appSinks: xs.empty()//graphChangeTrigger$
+    messages: patchGraph$,
+    appSinks: graphChangeTrigger$
   }
 }

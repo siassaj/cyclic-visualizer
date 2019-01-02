@@ -1,4 +1,5 @@
 import xs, { Stream }             from 'xstream'
+import diffGraphs                 from './diffGraphs'
 import Graph                      from './graph'
 import { buildGraph }             from './buildGraph'
 import {
@@ -6,7 +7,7 @@ import {
   map,
   zip,
   values,
-  find
+  filter
 }  from 'lodash'
 
 type State = {
@@ -60,39 +61,57 @@ function makeSinks(): Sinks {
   }
 }
 
-describe(buildGraph, () => {
+describe(diffGraphs, () => {
   let sinks: Sinks
   let listeners: Array<Listener>;
-  let graph: Graph
+  let oldGraph: Graph
+  let newGraph: Graph
 
   beforeEach(() => {
     sinks = makeSinks()
     listeners = listen(sinks)
-    graph = new Graph()
-    buildGraph(graph, sinks)
+    oldGraph = new Graph()
+    newGraph = new Graph()
+
+    buildGraph(oldGraph, sinks)
+    buildGraph(newGraph, sinks)
   })
 
   afterEach(() => {
     unListen(sinks, listeners)
   })
 
-  it('returns 12 nodes', () => {
-    const length = Object.keys(graph.nodes).length
+  describe('with existing old graph', () => {
+    it('returns 8 "add" patch instructions', () => {
+      const patch = diffGraphs(newGraph, oldGraph)
 
-    expect(length).toBe(14)
+      expect(filter(patch, (instruction) => instruction.op == 'add').length).toBe(8)
+    })
+
+    it('returns 8 "remove" patch instructions', () => {
+      const patch = diffGraphs(newGraph, oldGraph)
+
+      expect(filter(patch, (instruction) => instruction.op == 'remove').length).toBe(8)
+    })
+
+    it('returns 0 "replace" patch instructions', () => {
+      const patch = diffGraphs(newGraph, oldGraph)
+
+      expect(filter(patch, (instruction) => instruction.op == 'replace').length).toBe(0)
+    })
   })
 
-  it('returns 12 edges', () => {
-    const length = Object.keys(graph.edges).length
+  describe('with empty old graph', () => {
+    it('returns 26 patch instructions with first graph', () => {
+      const patch = diffGraphs(newGraph, new Graph)
 
-    expect(length).toBe(12)
-  })
+      expect(patch.length).toBe(26)
+    })
 
-  it('explores the inner stream of those producers with inner streams', () => {
-    expect(find(graph.nodes, {label: 'producer with inner: WOWZERS'})).toBeDefined()
-  })
+    it('all patch instructions are "add" with first graph', () => {
+      const patch = diffGraphs(newGraph, new Graph)
 
-  it('returns 1 flattenSourceStream', () => {
-    expect(graph.flattenSourceStreams().length).toBe(1)
+      expect(filter(patch, (instruction) => instruction.op != 'add').length).toBe(0)
+    })
   })
 })

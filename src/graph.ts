@@ -1,4 +1,3 @@
-import { graphlib, layout } from 'dagre'
 import { Stream, Operator } from 'xstream'
 import { uniq }             from 'lodash'
 import objectId             from './objectId'
@@ -25,24 +24,34 @@ type SectionGraphConfig = {
   sourceLabel: string;
   sourceId:    number;
   streamLabel: string;
-  streamId:    number;
   sinkLabel:   string;
   sinkId:      number;
 }
 
-type GraphNode = {
+export type Node = {
   id: string;
   type: 'parent' | 'cycleSource' | 'stream' | 'cycleSink' | 'operator';
   linkage?: 'ins' | 'insArr' | 'inner';
   parent?: string | undefined;
-  predParent?: string | undefined;
   label: string;
   width?: number;
   height?: number;
 }
 
+export type Edge = {
+  id: string,
+  sourceId: string,
+  targetId: string,
+  label: string
+}
+
 let cycleSources: { [k: string]: object } = {}
 
+function isKnownCycleSource(source: CycleSource | GOperator): boolean {
+  return cycleSources[<string>source.type] ? true : false
+}
+
+// Fetches object ids for the source, stream & sink.
 function registerObjectIds(section: Section): SectionGraphConfig {
   const source  = section.source
   const stream  = section.stream
@@ -50,7 +59,7 @@ function registerObjectIds(section: Section): SectionGraphConfig {
 
   let sourceObject
   if (section.isInitial) {
-    if (cycleSources[<string>source.type]) {
+    if (isKnownCycleSource(source)) {
       sourceObject = cycleSources[<string>source.type]
     } else {
       sourceObject = source
@@ -64,7 +73,6 @@ function registerObjectIds(section: Section): SectionGraphConfig {
     sourceLabel: source.type,
     sourceId:    objectId(sourceObject),
     streamLabel: (<DevtoolStream>stream)._isCycleSource || "",
-    streamId:    objectId(stream),
     sinkLabel:   sink.type,
     sinkId:      objectId(sink)
   }
@@ -75,66 +83,56 @@ function registerPossibleParent(this: Graph, section: Section): void {
     return
   }
 
-  const parent: GraphNode = {
+  const parent: Node = {
     id:    section.visualizeScope,
     label: section.visualizeScope,
     parent: section.predVisualizeScope,
     type:  'parent'
   }
 
-  if (!this.dagreGraph.node(parent.id)) {
-    this.dagreGraph.setNode(parent.id, parent)
-    this.setParent(parent)
-  }
+  this.setNode(parent)
 }
 
 function registerGraphElements(this: Graph, section: Section, config: SectionGraphConfig): void {
-  const sourceNode: GraphNode = {
+
+  const sourceNode: Node = {
     id:    config.sourceId.toString(),
     type:  section.isInitial ? "cycleSource" : "operator",
     label: section.isInitial ? config.streamLabel : config.sourceLabel,
-    parent: section.visualizeScope,
+    parent: section.isInitial ? "cycleSources" : section.visualizeScope,
     width: 100,
     height: 100
   }
 
-  const streamNode: GraphNode = {
-    id:    config.streamId.toString(),
-    type:  'stream',
-    linkage: section.type,
-    label: config.streamLabel,
-    parent: section.visualizeScope,
-    width: 100,
-    height: 100
-  }
+  // const streamNode: Node = {
+  //   id:    config.streamId.toString(),
+  //   type:  'stream',
+  //   linkage: section.type,
+  //   label: config.streamLabel,
+  //   parent: section.visualizeScope,
+  //   width: 100,
+  //   height: 100
+  // }
 
-  const sinkNode: GraphNode = {
+  const sinkNode: Node = {
     id:    config.sinkId.toString(),
     type:  section.isFinal ? "cycleSink" : "operator",
     label: config.sinkLabel,
-    parent: section.visualizeScope,
+    parent: section.isFinal ? "cycleSinks" : section.visualizeScope,
     width: 100,
     height: 100
   }
 
-  if (!this.dagreGraph.node(sourceNode.id)) {
-    this.dagreGraph.setNode(sourceNode.id, sourceNode)
-    this.setNode(sourceNode)
+  const edge: Edge = {
+    id:       `${sourceNode.id}.${sinkNode.id}`,
+    sourceId: sourceNode.id,
+    targetId: sinkNode.id,
+    label: section.type
   }
 
-  // if (!this.dagreGraph.node(streamNode.id)) {
-  //   this.dagreGraph.setNode(streamNode.id, streamNode)
-  //   this.setNode(streamNode)
-  // }
-
-  if (!this.dagreGraph.node(sinkNode.id))   {
-    this.dagreGraph.setNode(sinkNode.id,   sinkNode)
-    this.setNode(sinkNode)
-  }
-
-  this.dagreGraph.setEdge(sourceNode.id, sinkNode.id)
-  // this.dagreGraph.setEdge(sourceNode.id, streamNode.id)
-  // this.dagreGraph.setEdge(streamNode.id, sinkNode.id)
+  this.setNode(sourceNode)
+  this.setNode(sinkNode)
+  this.setEdge(edge)
 }
 
 function registerFlattenSourceStream(this: Graph, section: Section): void {
@@ -144,22 +142,14 @@ function registerFlattenSourceStream(this: Graph, section: Section): void {
 }
 
 export default class Graph {
-  dagreGraph: graphlib.Graph
-  ownNodes: { [id: string]: GraphNode }
-  ownParents: { [id: string]: GraphNode }
+  nodes: { [id: string]: Node }
+  edges: { [id: string]: Edge }
   _flattenSourceStreams: Array<Stream<any>>
 
   constructor() {
-    this.dagreGraph = new graphlib.Graph
-    this.ownNodes = {}
-    this.ownParents = {}
+    this.nodes = {}
+    this.edges = {}
     this._flattenSourceStreams = []
-  }
-
-  layout(): void {
-    this.dagreGraph.setGraph({})
-    this.dagreGraph.setDefaultEdgeLabel(() => ({}))
-    // layout(this.dagreGraph)
   }
 
   register(section: Section): void {
@@ -169,19 +159,16 @@ export default class Graph {
     registerGraphElements.call(this, section, graphConfig)
   }
 
-  setNode(node: GraphNode): void {
-    this.ownNodes[node.id] = node
+  setNode(node: Node): void {
+    if (!this.nodes[node.id]) { this.nodes[node.id] = node }
   }
 
-  setParent(node: GraphNode): void {
-    this.ownParents[node.id] = node
-  }
-
-  reset(): void {
-    this.ownNodes = {}
+  setEdge(edge: Edge): void {
+    if (!this.edges[edge.id]) { this.edges[edge.id] = edge }
   }
 
   flattenSourceStreams(): Array<Stream<any>> {
     return uniq(this._flattenSourceStreams)
   }
 }
+

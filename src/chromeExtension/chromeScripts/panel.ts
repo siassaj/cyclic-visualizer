@@ -1,12 +1,10 @@
-// import * as cytoscape  from 'cytoscape'
-// import * as dagre      from 'cytoscape-dagre'
-// import { parse }       from 'flatted'
-// import { map, each }   from 'lodash'
 import xs                from 'xstream'
 import {withState}       from '@cycle/state'
 import { timeDriver }    from "@cycle/time"
 import { makeDOMDriver } from "@cycle/dom"
 import { run }           from '@cycle/run'
+import { makeCytoscapeDriver } from './panel/cytoscapeDriver'
+import makeMessagingDriver from './panel/messagingDriver'
 import main              from './panel/main'
 
 const wrappedMain = withState(main)
@@ -14,18 +12,15 @@ const wrappedMain = withState(main)
 const Time = timeDriver(xs.empty())
 
 run(wrappedMain, {
-  time: () => Time,
-  DOM: makeDOMDriver(".cycleApp")
+  time:     () => Time,
+  DOM:      makeDOMDriver(".cycleApp"),
+  cyto:     makeCytoscapeDriver(),
+  messages: makeMessagingDriver(window)
 })
 
 // cytoscape.use(dagre);
 
 // LET cy: cytoscape.Core;
-
-export type Message = {
-  action: "renderGraph",
-  payload: any
-};
 
 // function renderCytoscape(window: Window, graph: any, inputElement: HTMLTextAreaElement) {
 //   const nodes = [

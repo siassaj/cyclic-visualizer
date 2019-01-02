@@ -142,5 +142,8 @@ export function buildGraph(graph: Graph, sinks: Sinks): Graph {
       if (section) { crawlSection(section, stack, graph) }
     }
 
+  graph.setNode({id: "cycleSources", type: "parent", label: "Cycle Sources" })
+  graph.setNode({id: "cycleSinks",   type: "parent", label: "Cycle Sinks" })
+
   return graph
 }

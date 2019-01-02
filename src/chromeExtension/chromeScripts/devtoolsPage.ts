@@ -1,5 +1,3 @@
-import { Message as PanelMessage } from  './panel'
-
 function turnOnGraph(window: Window): void {
   console.log("Turning on graph")
 }
@@ -9,21 +7,14 @@ function turnOffGraph(): void {
 }
 
 interface Message {
-  action: "setGraph" | "identifyCyclejsApp",
+  action: any
+  target: any
   payload: any
 }
 
 function handleContentScriptMessage(panelWindow: Window, message: Message) {
-  console.log("Message from content script", {
-    action: message.action,
-    payload: message.payload
-  })
-
-  if (message.action == "setGraph") {
-    panelWindow.postMessage(<PanelMessage>{
-      action: 'renderGraph',
-      payload: message.payload
-    }, '*')
+  if (message.target = "panel") {
+    panelWindow.postMessage(message, '*')
   }
 }
 

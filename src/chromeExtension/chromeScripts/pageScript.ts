@@ -1,7 +1,7 @@
-import makeDevtoolDriver                   from 'chromeExtension/pageApp/devtoolDriver'
+import makeMessagingDriver           from 'chromeExtension/pageApp/messagingDriver'
 import makeAppSinksDriver, { Sinks } from 'chromeExtension/pageApp/appSinksDriver'
-import { run }                             from '@cycle/run'
-import main                                from 'chromeExtension/pageApp/main'
+import { run }                       from '@cycle/run'
+import main                          from 'chromeExtension/pageApp/main'
 
 const cycleJs = (<any>window)["Cyclejs"]
 
@@ -19,7 +19,7 @@ function setUp(): void {
 
     run(main, {
       appSinks: makeAppSinksDriver(sinks),
-      devtool:  makeDevtoolDriver(window)
+      messages:  makeMessagingDriver(window)
     })
   }
 }
