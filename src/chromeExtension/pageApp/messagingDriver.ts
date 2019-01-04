@@ -14,7 +14,13 @@ export interface StateMessage {
   payload: { [k: string]: any }
 }
 
-export type OutboundMessage = PatchMessage | StateMessage
+export interface ZapMessage {
+  action: "zap",
+  target: "panel",
+  payload: { id: string, data: any }
+}
+
+export type OutboundMessage = PatchMessage | StateMessage | ZapMessage
 
 export type InboundMessage = {
   target: "pageScript",

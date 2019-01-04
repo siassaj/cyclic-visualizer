@@ -5,7 +5,9 @@ import { Sources as AppSources, }                          from './appSourcesDri
 import { OutboundMessage,
          InboundMessage,
          PatchMessage,
-         StateMessage  }    from './messagingDriver'
+         StateMessage,
+         ZapMessage
+       }    from './messagingDriver'
 import { buildGraph }                                      from 'buildGraph'
 import diff                                                from 'diffGraphs'
 import Graph                                               from 'graph'
@@ -43,9 +45,10 @@ export default function main(sources: Sources): Sinks {
 
   const updateState$ = appState$.map<StateMessage>(state => ({ target: "panel", action: "updateState", payload: state }))
   const patchGraph$  = graphAcc$.map<PatchMessage>(acc   => ({ target: "panel", action: "patchGraph",  payload: diff(acc.newGraph, acc.oldGraph) })).debug('patch')
+  const zap$ = xs.empty()
 
   return {
-    messages: xs.merge(patchGraph$, updateState$),
+    messages: xs.merge(patchGraph$, updateState$, zap$),
     appSinks: graphChangeTrigger$
   }
 }

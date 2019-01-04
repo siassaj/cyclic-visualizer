@@ -18,7 +18,7 @@ export type Section = {
 
 interface GOperator<T = any, R = any> extends Operator<Stream<T>, R> {}
 
-type DevtoolStream = Stream<any> & { _isCycleSource?: string }
+type DevtoolStream = Stream<any> & { _isCycleSource?: string, _visualizeSinkKey: string | undefined }
 
 type SectionGraphConfig = {
   sourceLabel: string;
@@ -42,7 +42,8 @@ export type Edge = {
   id: string,
   sourceId: string,
   targetId: string,
-  label: string
+  label: string,
+  type: string | undefined
 }
 
 let cycleSources: { [k: string]: object } = {}
@@ -69,10 +70,11 @@ function registerObjectIds(section: Section): SectionGraphConfig {
     sourceObject = source
   }
 
+  const sinkKey = (<DevtoolStream>stream)._visualizeSinkKey
   return {
-    sourceLabel: source.type,
+    sourceLabel: sinkKey ? `${source.type}: ${sinkKey}` : source.type,
     sourceId:    objectId(sourceObject),
-    streamLabel: (<DevtoolStream>stream)._isCycleSource || "",
+    streamLabel: (<DevtoolStream>stream)._isCycleSource || sinkKey || "",
     sinkLabel:   sink.type,
     sinkId:      objectId(sink)
   }
@@ -127,7 +129,8 @@ function registerGraphElements(this: Graph, section: Section, config: SectionGra
     id:       `${sourceNode.id}.${sinkNode.id}`,
     sourceId: sourceNode.id,
     targetId: sinkNode.id,
-    label: section.type
+    label: config.streamLabel,
+    type: section.type
   }
 
   this.setNode(sourceNode)
