@@ -64,6 +64,13 @@ export function initCytoConfig() {
         'line-color': '#333333',
         'target-arrow-color': '#333333',
         'curve-style': 'bezier'
+      },
+    }, {
+      selector: '.highlighted',
+      style: {
+        'opacity': 1,
+        'background-color': '#87ceff',
+        'line-color': '#87ceff'
       }
     }, {
       selector: '.highlightedPredecessor',
@@ -165,8 +172,9 @@ export function highlightChain(node: cytoscape.NodeSingular) {
     action: 'shamefullyMutate',
     data: (graph: cytoscape.Core): void => {
       graph.startBatch()
-      graph.nodes().removeClass("highlightedSuccessor").removeClass("highlightedPredecessor")
-      graph.edges().removeClass("highlightedSuccessor").removeClass("highlightedPredecessor")
+      graph.nodes().removeClass("highlightedSuccessor").removeClass("highlightedPredecessor").removeClass("highlighted")
+      graph.edges().removeClass("highlightedSuccessor").removeClass("highlightedPredecessor").removeClass("highlighted")
+      node.addClass("highlighted")
       node.successors().addClass("highlightedSuccessor")
       node.predecessors().addClass("highlightedPredecessor")
       graph.endBatch()
