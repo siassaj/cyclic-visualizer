@@ -172,11 +172,15 @@ export function highlightChain(node: cytoscape.NodeSingular) {
     action: 'shamefullyMutate',
     data: (graph: cytoscape.Core): void => {
       graph.startBatch()
+
       graph.nodes().removeClass("highlightedSuccessor").removeClass("highlightedPredecessor").removeClass("highlighted")
       graph.edges().removeClass("highlightedSuccessor").removeClass("highlightedPredecessor").removeClass("highlighted")
-      node.addClass("highlighted")
-      node.successors().addClass("highlightedSuccessor")
-      node.predecessors().addClass("highlightedPredecessor")
+
+      const selected = graph.$('node:selected')
+      selected.addClass("highlighted")
+      selected.successors().addClass("highlightedSuccessor")
+      selected.predecessors().addClass("highlightedPredecessor")
+
       graph.endBatch()
     }
   }
