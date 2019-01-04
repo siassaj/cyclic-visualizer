@@ -1,16 +1,17 @@
-import xs, { Stream }           from 'xstream'
-import sampleCombine            from 'xstream/extra/sampleCombine'
-import { DOMSource, VNode }     from '@cycle/dom'
-import { TimeSource }           from '@cycle/time'
-import { StateSource, Reducer } from '@cycle/state'
-import { Source as CytoSource, Request as CytoRequest } from './cytoscapeDriver'
-import { Source as MessagingSource, Request as MessagingRequest, PatchGraphMessage } from './messagingDriver'
-import view                     from "./view"
-import { each, filter, map } from 'lodash'
-import { EdgePatchOperation, NodePatchOperation } from 'diffGraphs'
-import * as cytoscape from 'cytoscape'
+import xs, { Stream }                                                                from 'xstream'
+import sampleCombine                                                                 from 'xstream/extra/sampleCombine'
+import { DOMSource, VNode }                                                          from '@cycle/dom'
+import { TimeSource }                                                                from '@cycle/time'
+import { StateSource, Reducer }                                                      from '@cycle/state'
+import { Source as CytoSource, Request as CytoRequest, IDelegate }                   from './cytoscapeDriver'
+import { Source as MessagingSource, Request as MessagingRequest, PatchGraphMessage, UpdateStateMessage } from './messagingDriver'
+import view                                                                          from "./view"
+import { initCytoConfig, patchGraph, restyleGraph, relayoutGraph, buildCytoInit, CytoConfig, highlightChain }       from './cytoGraph'
 
-export interface State {}
+export interface State {
+  cytoConfig: CytoConfig | undefined,
+  appState: any
+}
 
 interface Sources {
   state:    StateSource<State>;
@@ -28,113 +29,69 @@ interface Sinks {
   messages: Stream<MessagingRequest>;
 }
 
-const layout = {
-  name: 'dagre',
-  ranker: 'network-simplex'
-}
-
-// const layout = {
-//   name: 'cola',
-//   flow: { axis: 'y', minSeparation: 30 },
-//   nodeSpacing: function( node: any ){ return 30; }
-// }
-
-function buildCytoInit(elem: HTMLElement) {
-  return {
-    category: 'graph',
-    action: 'init',
-    data: <cytoscape.CytoscapeOptions> {
-      container: elem,
-      boxSelectionEnabled: true,
-      autounselectify: false,
-      elements: {
-        nodes: [],
-        edges: []
-      },
-      layout: layout,
-      style: [{
-        selector: 'node',
-        style: {
-          'label': 'data(label)',
-          'background-color': '#77bbff'
-        }
-      }, {
-        selector: 'edge',
-        style: {
-          'width': 4,
-          'target-arrow-shape': 'triangle',
-          'line-color': '#dcdcdc',
-          'target-arrow-color': '#ababab',
-          'curve-style': 'bezier'
-        }
-      }, {
-        selector: '.highlightedPredecessor',
-        style: {
-          'line-color': '#7fffd4'
-        }
-      }, {
-        selector: '.highlightedSuccessor',
-        style: {
-          'line-color': '#f08080'
-        }
-      }, {
-        selector: ':parent',
-        style: {
-          'background-color': "#000000",
-          'background-opacity': 0.1,
-          'font-size': '45px'
-        }
-      }]
-    }
-  }
-}
-
-function patchGraph([message, _]: [PatchGraphMessage, any]) {
-  return {
-    category: 'graph',
-    action: 'shamefullyMutate',
-    data: (graph: cytoscape.Core): void => {
-      graph.startBatch()
-
-      const additionalNodes = map(filter(message.payload, { op: "add", type: "node" }), (op) => {
-        const node = (<NodePatchOperation>op).element
-
-        return { group: "nodes", data: { id: node.id, parent: node.parent, label: node.label } } as cytoscape.ElementDefinition
-      })
-
-      const additionalEdges = map(filter(message.payload, { op: "add", type: "edge" }), (op) => {
-        const edge = (<EdgePatchOperation>op).element
-
-        return { group: "edges", data: { id: edge.id, source: edge.sourceId, target: edge.targetId, label: edge.label } } as cytoscape.ElementDefinition
-      });
-
-      graph.add(additionalNodes)
-      graph.add(additionalEdges)
-
-      each(filter(message.payload, { op: "remove" }), (op) => {
-        const element = op.element
-
-        graph.getElementById(element.id).remove()
-      });
-
-      graph.endBatch()
-      graph.layout(layout).run()
-    }
-  }
-}
-
 export default function main(sources: Sources): Sinks {
-  const view$     = view({parent: sources.state.stream})
-  const state$    = xs.of<Reducer<State>>(() => ({}))
-  const time$     = xs.empty()
-  const messages$ = xs.empty()
-
   const cytoElement$ = sources.DOM.select('.graph').element().take(1) as unknown as Stream<HTMLElement>;
   const cytoGraph$   = sources.cyto.select('graph').map(e => e.graph).take(1)
   // sample combine with cytoGraph$ to make sure we send the patch message after the graph has been initialized
-  const patchGraph$    = sources.messages.filter(message => message.action == "patchGraph").compose(sampleCombine(cytoGraph$)).map(patchGraph).debug('patchGraph')
-  const initCytoGraph$ = cytoElement$.map(buildCytoInit)
-  const cyto$          = xs.merge(initCytoGraph$, patchGraph$)
+  const patchGraph$    = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(cytoGraph$)).map(patchGraph)
+  const initCytoGraph$ = cytoElement$.map((elem: HTMLElement) => buildCytoInit(elem, initCytoConfig()))
+  const styleGraph$    = sources.DOM.select('.submitStyle').events('click').compose(sampleCombine(sources.state.stream)).map(([_, state]: [any, State]) => restyleGraph(((state as State).cytoConfig as CytoConfig).style))
+  const layoutGraph$    = sources.DOM.select('.submitLayout').events('click').compose(sampleCombine(sources.state.stream)).map(([_, state]: [any, State]) => relayoutGraph(((state as State).cytoConfig as CytoConfig).layout))
+
+  const view$     = view({parent: sources.state.stream})
+
+  const setCytoLayout$    = sources.DOM.select('.layoutConfig').events('input').map((e: Event) => {
+    console.log('layout', (<any>e.currentTarget).value)
+    try {
+      return JSON.parse((e.currentTarget as HTMLInputElement).value)
+    } catch (e) {
+      return null
+    }
+  }).filter(e => e ? true : false).map<Reducer<State>>(layout => prev => ({
+    ...prev as State,
+    cytoConfig: {
+      ...((prev as State).cytoConfig as CytoConfig),
+      layout: layout
+    }
+  }))
+
+  const setCytoStyle$    = sources.DOM.select('.styleConfig').events('input').map((e: Event) => {
+    console.log('style', (<any>e.currentTarget).value)
+    try {
+      return JSON.parse((e.currentTarget as HTMLInputElement).value)
+    } catch (e) {
+      return null
+    }
+  }).filter(e => e ? true : false).map<Reducer<State>>(style => prev => ({
+    ...prev as State,
+    cytoConfig: {
+      ...((prev as State).cytoConfig as CytoConfig),
+      style: style
+    }
+  }))
+
+  const initCytoConfig$   = initCytoGraph$.map<Reducer<State>>(config => prev => ({
+    ...prev as State,
+    cytoConfig: { layout: config.data.layout, style: config.data.style }
+  }))
+
+  const updateAppState$   = (sources.messages.filter(m => m.action == "updateState") as Stream<UpdateStateMessage>).map<Reducer<State>>(message => prev => ({
+    ...prev as State,
+    appState: message.payload
+  }))
+
+  const traceEdges$ = sources.cyto.select('graph').map(delegate => delegate.on('tap', 'node') as Stream<cytoscape.EventObject>).flatten().filter(e => (e.target && e.target.isNode && e.target.isNode())).map((e: any) => highlightChain(e.target as cytoscape.NodeSingular))
+
+  const state$    = xs.merge(
+    initCytoConfig$,
+    setCytoLayout$,
+    setCytoStyle$,
+    updateAppState$
+  ).startWith(() => ({ appState: undefined, cytoConfig: undefined }))
+
+  const time$     = xs.empty()
+  const messages$ = xs.empty()
+  const cyto$          = xs.merge(initCytoGraph$, patchGraph$, styleGraph$, layoutGraph$, traceEdges$)
 
   return {
     DOM:      view$,

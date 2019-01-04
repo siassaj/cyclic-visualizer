@@ -2,7 +2,7 @@ import { Stream } from 'xstream'
 import { State }  from './main'
 import {
   VNode,
-  h1, main, div, label, textarea, button, br
+  h1, main, div, label, textarea, button, br, pre
 } from '@cycle/dom'
 
 interface Streams {
@@ -12,14 +12,22 @@ interface Streams {
 export default function view(streams: Streams): Stream<VNode> {
   const state$ = streams.parent
 
-  return state$.map(_ => main([
+  return state$.map(state => main([
     div(".controlPanel", [
       h1("Cyclic Visualizer"),
+      pre(".appState", JSON.stringify(state.appState, null, 2)),
       label(".configLabel", [
-        textarea(".config")
+        "Layout",
+        textarea(".layoutConfig", { props: { value: JSON.stringify(state.cytoConfig ? state.cytoConfig.layout : undefined, null, 2) } })
       ]),
       br(),
-      button(".submit", "Redraw")
+      button(".submitLayout", "ReLayout"),
+      label("..configLabel", [
+        "Style",
+        textarea(".styleConfig", { props: { value: JSON.stringify(state.cytoConfig ? state.cytoConfig.style : undefined, null, 2) } })
+      ]),
+      br(),
+      button(".submitStyle", "ReStyle")
     ]),
     div(".graph")
   ]))

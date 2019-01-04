@@ -2,19 +2,22 @@ import xs, { Stream }                  from 'xstream'
 import { defineDriver, Source as Base, Response$$ } from 'defineDriver'
 import * as cytoscape                  from 'cytoscape'
 import * as dagre                      from 'cytoscape-dagre'
-import * as cola                       from 'cytoscape-cola'
+import * as klay                       from 'cytoscape-klay'
 import { find }                        from 'lodash'
 
 cytoscape.use(dagre)
-cytoscape.use(cola)
+cytoscape.use(klay)
 
 const operations = {
   init: (data: cytoscape.CytoscapeOptions): cytoscape.Core => {
-    return cytoscape(data)
+    const graph  = cytoscape(data)
+    graph.layout(<cytoscape.LayoutOptions>data.layout).run()
+
+    return graph
   },
 
   setLayout: (graph: cytoscape.Core, data: cytoscape.LayoutOptions) => {
-    graph.layout(data)
+    return graph.layout(data)
   },
 
   shamefullyMutate(graph: cytoscape.Core, data: (graph: cytoscape.Core) => void) {
@@ -34,17 +37,27 @@ export interface NamespacedRequest extends Request {
 
 export interface Response {
   category: string
-  delegate: GraphDelegate
+  delegate: IDelegate
 }
 
-export class GraphDelegate {
+export interface IDelegate {
+  graph: cytoscape.Core | undefined
+  on: (events: string, target: string) => Stream<cytoscape.EventObject> | void
+}
+export class DummyDelegate implements IDelegate {
+  graph: undefined
+
+  on(): void { }
+}
+
+export class GraphDelegate implements IDelegate {
   graph: cytoscape.Core
 
   constructor(graph: cytoscape.Core) {
     this.graph = graph
   }
 
-  on(events: string): Stream<cytoscape.EventObject> {
+  on(events: string, target: string): Stream<cytoscape.EventObject> {
     let handler: cytoscape.EventHandler
 
     return xs.create({
@@ -53,7 +66,7 @@ export class GraphDelegate {
         this.graph.on(events, handler)
       },
 
-      stop: () => {this.graph.removeListener(events, undefined, handler)}
+      stop: () => { this.graph.removeListener(events, undefined, handler) }
     })
   }
 }
@@ -68,7 +81,7 @@ export class Source extends Base<Request, Response> {
     super(allResults$$, ownAndChildResults$$, options, config)
   }
 
-  select(category: string): Stream<GraphDelegate> {
+  select(category: string): Stream<IDelegate> {
     return (<Stream<Stream<Response>>>super.select(category)).
       flatten().
       map(resp => resp.delegate)
@@ -78,7 +91,7 @@ export class Source extends Base<Request, Response> {
 interface NamespacedGraph {
   namespace: Array<any>,
   category: string,
-  graph: cytoscape.Core
+  graph: cytoscape.Core,
 }
 
 const registry: Array<NamespacedGraph> = []
@@ -114,22 +127,26 @@ function setGraph(
   }
 }
 
-function handleRequest(req: NamespacedRequest): cytoscape.Core {
+function handleRequest(req: NamespacedRequest): cytoscape.Core | undefined {
   const namespace = req._namespace
   const category  = req.category
   const action    = <keyof typeof operations>req.action
   const data      = req.data
 
-  let graph: cytoscape.Core
+  let graph: cytoscape.Core | undefined = undefined
 
   if (action == "init") {
-    const f: Function = <Function>operations[action]
     graph = operations[action](data)
+
     setGraph(namespace, category, graph)
-  } else {
-    const operation = operations[action] as (graph: cytoscape.Core, data: any) => any
-    graph = <cytoscape.Core>getGraph(namespace, category)
-    operation(graph, data)
+  } else if (action == "setLayout") {
+    graph = getGraph(namespace, category)
+
+    if (graph) { operations[action](graph, data) }
+  } else if (action == "shamefullyMutate") {
+    graph = getGraph(namespace, category)
+
+    if (graph) { operations[action](graph, data) }
   }
 
   return graph
@@ -141,10 +158,11 @@ export const makeCytoscapeDriver = defineDriver<NamespacedRequest, Response>({
   config: { isAlwaysListening: true },
   callbacks: {
     sinkNext: (req: NamespacedRequest) => {
-      const graph: cytoscape.Core = handleRequest(req)
+      const graph = handleRequest(req)
+
       return xs.of({
         category: req.category,
-        delegate: new GraphDelegate(graph)
+        delegate: graph ? new GraphDelegate(graph) : new DummyDelegate() as IDelegate
       })
     }
   }

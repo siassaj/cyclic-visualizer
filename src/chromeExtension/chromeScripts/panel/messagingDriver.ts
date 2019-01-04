@@ -1,12 +1,5 @@
 import xs, { Producer, Listener, Stream } from 'xstream'
-import { stringify, parse }               from 'flatted'
 import { Patch } from 'diffGraphs'
-
-export interface GenericMessage {
-  target: "pageScript",
-  action: string,
-  payload: object
-}
 
 export interface PatchGraphMessage {
   target: "panel"
@@ -14,9 +7,23 @@ export interface PatchGraphMessage {
   payload: Patch
 }
 
-export interface Source extends Stream<PatchGraphMessage> {}
+export interface UpdateStateMessage {
+  target: "panel"
+  action: 'updateState',
+  payload: any
+}
 
-export interface Request extends GenericMessage {}
+export type InboundMessage = PatchGraphMessage | UpdateStateMessage
+
+export type OutboundMessage = {
+  target: "pageScript",
+  action: string,
+  payload: any
+}
+
+export interface Source extends Stream<InboundMessage> {}
+
+export interface Request extends OutboundMessage {}
 
 interface MyListener<T> extends Producer<T> {
   messageListener: (e: MessageEvent) => void,
@@ -24,13 +31,13 @@ interface MyListener<T> extends Producer<T> {
 }
 
 export default function makeMessagingDriver(window: Window) {
-  return function(sink$: Stream<GenericMessage>) {
+  return function(sink$: Stream<OutboundMessage>) {
 
     sink$.addListener({
-      next: (message: GenericMessage) => window.postMessage({
+      next: (message: OutboundMessage) => window.postMessage({
         target: message.target,
         action: message.action,
-        payload: message.payload // stringify(message.payload)
+        payload: message.payload
       }, '*')
     })
 
@@ -38,7 +45,6 @@ export default function makeMessagingDriver(window: Window) {
 
     let messageListener = (e: MessageEvent): void => {
       if (e.data.target == 'panel') {
-        // listener.next(parse(e.data.payload))
         listener.next(e.data)
       }
     }

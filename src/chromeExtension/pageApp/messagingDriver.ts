@@ -1,6 +1,6 @@
 import xs, { Producer, Listener, Stream } from 'xstream'
-import { stringify, parse }               from 'flatted'
 import { Patch }                          from 'diffGraphs'
+
 
 export interface PatchMessage {
   action: "patchGraph",
@@ -8,7 +8,19 @@ export interface PatchMessage {
   payload: Patch
 }
 
-export type Message = PatchMessage
+export interface StateMessage {
+  action: "updateState",
+  target: "panel",
+  payload: { [k: string]: any }
+}
+
+export type OutboundMessage = PatchMessage | StateMessage
+
+export type InboundMessage = {
+  target: "pageScript",
+  action: string,
+  payload: any
+}
 
 interface MyListener<T> extends Producer<T> {
   messageListener: (e: MessageEvent) => void,
