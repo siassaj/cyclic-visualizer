@@ -25,7 +25,16 @@ import {
   CytoConfig,
   highlightChain
 }                               from './cytoGraph'
+import {
+  initCytoConfig as initComponentsConfig,
+  buildCytoInit  as buildComponentsInit,
+  patchGraph     as patchComponentsGraph
+}                               from './componentsGraph'
 import view                     from "./view"
+
+export type Component = {
+  [k: string]: string | Component
+}
 
 export interface State {
   cytoConfig: CytoConfig | undefined,
@@ -49,15 +58,19 @@ interface Sinks {
 }
 
 export default function main(sources: Sources): Sinks {
-  const cytoElement$ = sources.DOM.select('.graph').element().take(1) as unknown as Stream<HTMLElement>;
+  const cytoElement$ = sources.DOM.select('.graph').element().take(1) as Stream<Element>
   const cytoGraph$   = sources.cyto.select('graph').map(e => e.graph).take(1)
   // sample combine with cytoGraph$ to make sure we send the patch message after the graph has been initialized
   const patchGraph$    = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(cytoGraph$)).map(patchGraph)
-  const initCytoGraph$ = cytoElement$.map((elem: HTMLElement) => buildCytoInit(elem, initCytoConfig()))
+  const initCytoGraph$ = cytoElement$.map((elem: Element) => buildCytoInit(elem as HTMLElement, initCytoConfig()))
   const styleGraph$    = sources.DOM.select('.submitStyle').events('click').compose(sampleCombine(sources.state.stream)).map(([_, state]: [any, State]) => restyleGraph(((state as State).cytoConfig as CytoConfig).style))
   const layoutGraph$   = sources.DOM.select('.submitLayout').events('click').compose(sampleCombine(sources.state.stream)).map(([_, state]: [any, State]) => relayoutGraph(((state as State).cytoConfig as CytoConfig).layout))
-
   const zap$           = (sources.messages.filter(m => m.action == "zap") as Stream<ZapMessage>).map(zapGraph)
+
+  const componentsElement$    = sources.DOM.select('.components').element().take(1) as Stream<Element>
+  const componentsGraph$      = sources.cyto.select('components').map(e => e.graph).take(1)
+  const initComponentsGraph$  = componentsElement$.map((elem: Element) => buildComponentsInit(elem as HTMLElement, initComponentsConfig()))
+  const patchComponentsGraph$ = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(componentsGraph$)).map(patchComponentsGraph)
 
   const view$     = view({parent: sources.state.stream})
 
@@ -112,7 +125,10 @@ export default function main(sources: Sources): Sinks {
 
   const time$     = xs.empty()
   const messages$ = xs.empty()
-  const cyto$      = xs.merge(initCytoGraph$, patchGraph$, styleGraph$, layoutGraph$, traceEdges$, zap$)
+  const cyto$      = xs.merge(
+    initCytoGraph$,       patchGraph$,          styleGraph$, layoutGraph$, traceEdges$, zap$,
+    initComponentsGraph$, patchComponentsGraph$
+  )
 
   return {
     DOM:      view$,

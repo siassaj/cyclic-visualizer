@@ -3,6 +3,14 @@ import {
   keys, filter, map, includes, flatten }
 from 'lodash'
 
+export type Component = {
+  name: string
+  sources: Array<string>;
+  sinks: Array<string>;
+}
+
+export type ComponentTree = { [k: string]: Component | ComponentTree }
+
 export interface NodePatchOperation {
   op: "add" | "remove" | "replace"
   type: "node"

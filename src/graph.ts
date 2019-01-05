@@ -46,7 +46,7 @@ export type Edge = {
   sourceId: string,
   targetId: string,
   label: string,
-  type: string | undefined
+  type: "ins" | "insArr" | "inner" | "parent" | undefined
 }
 
 let cycleSources: { [k: string]: object } = {}
@@ -96,6 +96,18 @@ function registerPossibleParent(graph: Graph, section: Section): void {
   }
 
   graph.setNode(parent)
+
+  if (section.predVisualizeScope) {
+    const edge: Edge = {
+      id: `${section.predVisualizeScope}.${section.visualizeScope}`,
+      sourceId: section.predVisualizeScope,
+      targetId: section.visualizeScope,
+      label: "",
+      type: "parent"
+    }
+
+    graph.setEdge(edge)
+  }
 }
 
 function registerGraphElements(graph: Graph, section: Section, config: SectionGraphConfig): void {

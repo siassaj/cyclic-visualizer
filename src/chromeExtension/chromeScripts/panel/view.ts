@@ -16,6 +16,7 @@ export default function view(streams: Streams): Stream<VNode> {
     div(".controlPanel", [
       h1("Cyclic Visualizer"),
       pre(".appState", JSON.stringify(state.appState, null, 2)),
+
       label(".configLabel", [
         "Layout",
         textarea(".layoutConfig", { props: { value: JSON.stringify(state.cytoConfig ? state.cytoConfig.layout : undefined, null, 2) } })
@@ -29,6 +30,7 @@ export default function view(streams: Streams): Stream<VNode> {
       br(),
       button(".submitStyle", "ReStyle")
     ]),
+    div(".components"),
     div(".graph")
   ]))
 }
