@@ -1,7 +1,6 @@
 import xs, { Producer, Listener, Stream } from 'xstream'
 import { Patch }                          from 'diffGraphs'
 
-
 export interface PatchMessage {
   action: "patchGraph",
   target: "panel",
@@ -17,7 +16,7 @@ export interface StateMessage {
 export interface ZapMessage {
   action: "zap",
   target: "panel",
-  payload: { id: string, data: any }
+  payload: { id: string, depth: number, payload: any }
 }
 
 export type OutboundMessage = PatchMessage | StateMessage | ZapMessage
@@ -40,7 +39,7 @@ export default function makeMessagingDriver(window: Window) {
       next: (message: Message) => window.postMessage({
         target: message.target,
         action: message.action,
-        payload: message.payload// stringify(message.payload)
+        payload: message.payload
       }, '*')
     })
 
@@ -48,7 +47,6 @@ export default function makeMessagingDriver(window: Window) {
 
     let messageListener = (e: MessageEvent): void => {
       if (e.data.target == 'pageScript') {
-        // listener.next(parse(e.data.payload))
         listener.next(e.data)
       }
     }

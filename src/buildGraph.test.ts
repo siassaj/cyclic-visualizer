@@ -93,6 +93,8 @@ describe(buildGraph, () => {
   })
 
   it('returns 1 flattenSourceStream', () => {
-    expect(graph.flattenSourceStreams().length).toBe(1)
+    const s = new Set<number>()
+    s.fo
+    expect(graph.flattenSourceStreams.size).toBe(1)
   })
 })

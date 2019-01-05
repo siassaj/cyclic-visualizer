@@ -1,12 +1,31 @@
-import xs, { Stream }                                                                from 'xstream'
-import sampleCombine                                                                 from 'xstream/extra/sampleCombine'
-import { DOMSource, VNode }                                                          from '@cycle/dom'
-import { TimeSource }                                                                from '@cycle/time'
-import { StateSource, Reducer }                                                      from '@cycle/state'
-import { Source as CytoSource, Request as CytoRequest, IDelegate }                   from './cytoscapeDriver'
-import { Source as MessagingSource, Request as MessagingRequest, PatchGraphMessage, UpdateStateMessage } from './messagingDriver'
-import view                                                                          from "./view"
-import { initCytoConfig, patchGraph, restyleGraph, relayoutGraph, buildCytoInit, CytoConfig, highlightChain }       from './cytoGraph'
+import xs, { Stream }           from 'xstream'
+import sampleCombine            from 'xstream/extra/sampleCombine'
+import { DOMSource, VNode }     from '@cycle/dom'
+import { TimeSource }           from '@cycle/time'
+import { StateSource, Reducer } from '@cycle/state'
+import {
+  Source as CytoSource,
+  Request as CytoRequest,
+  IDelegate
+}                               from './cytoscapeDriver'
+import {
+  Source as MessagingSource,
+  Request as MessagingRequest,
+  PatchGraphMessage,
+  UpdateStateMessage,
+  ZapMessage
+}                               from './messagingDriver'
+import {
+  initCytoConfig,
+  patchGraph,
+  restyleGraph,
+  relayoutGraph,
+  zapGraph,
+  buildCytoInit,
+  CytoConfig,
+  highlightChain
+}                               from './cytoGraph'
+import view                     from "./view"
 
 export interface State {
   cytoConfig: CytoConfig | undefined,
@@ -36,7 +55,9 @@ export default function main(sources: Sources): Sinks {
   const patchGraph$    = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(cytoGraph$)).map(patchGraph)
   const initCytoGraph$ = cytoElement$.map((elem: HTMLElement) => buildCytoInit(elem, initCytoConfig()))
   const styleGraph$    = sources.DOM.select('.submitStyle').events('click').compose(sampleCombine(sources.state.stream)).map(([_, state]: [any, State]) => restyleGraph(((state as State).cytoConfig as CytoConfig).style))
-  const layoutGraph$    = sources.DOM.select('.submitLayout').events('click').compose(sampleCombine(sources.state.stream)).map(([_, state]: [any, State]) => relayoutGraph(((state as State).cytoConfig as CytoConfig).layout))
+  const layoutGraph$   = sources.DOM.select('.submitLayout').events('click').compose(sampleCombine(sources.state.stream)).map(([_, state]: [any, State]) => relayoutGraph(((state as State).cytoConfig as CytoConfig).layout))
+
+  const zap$           = (sources.messages.filter(m => m.action == "zap") as Stream<ZapMessage>).map(zapGraph)
 
   const view$     = view({parent: sources.state.stream})
 
@@ -91,7 +112,7 @@ export default function main(sources: Sources): Sinks {
 
   const time$     = xs.empty()
   const messages$ = xs.empty()
-  const cyto$          = xs.merge(initCytoGraph$, patchGraph$, styleGraph$, layoutGraph$, traceEdges$)
+  const cyto$      = xs.merge(initCytoGraph$, patchGraph$, styleGraph$, layoutGraph$, traceEdges$, zap$)
 
   return {
     DOM:      view$,

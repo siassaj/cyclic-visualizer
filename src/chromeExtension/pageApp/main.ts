@@ -11,6 +11,7 @@ import { OutboundMessage,
 import { buildGraph }                                      from 'buildGraph'
 import diff                                                from 'diffGraphs'
 import Graph                                               from 'graph'
+import { stringify }                                       from 'flatted'
 
 type Sources = {
   messages:   Stream<InboundMessage>;
@@ -27,7 +28,7 @@ type State = any
 
 // Collect & merge all the in streams for operators with an inner stream. Each time the in stream fires the graph could be rebuilt, so fire
 function detectGraphChanges(graph: Graph): Stream<any> {
-  return xs.merge( ...graph.flattenSourceStreams()).compose(dropUntil(xs.periodic(10).take(1)))
+  return xs.merge( ...graph.flattenSourceStreams).compose(dropUntil(xs.periodic(10).take(1)))
 }
 
 type Acc = { newGraph: Graph, oldGraph: Graph }
@@ -44,8 +45,9 @@ export default function main(sources: Sources): Sinks {
   const appState$    = sources.appSources.map(sources => <Stream<State>>sources.state.stream).flatten()
 
   const updateState$ = appState$.map<StateMessage>(state => ({ target: "panel", action: "updateState", payload: state }))
-  const patchGraph$  = graphAcc$.map<PatchMessage>(acc   => ({ target: "panel", action: "patchGraph",  payload: diff(acc.newGraph, acc.oldGraph) })).debug('patch')
-  const zap$ = xs.empty()
+  const patchGraph$  = graphAcc$.map<PatchMessage>(acc => ({ target: "panel", action: "patchGraph",  payload: diff(acc.newGraph, acc.oldGraph) })).debug('patch')
+  const zap$         = graph$.map(graph => graph.getZaps()).flatten().
+    map<ZapMessage>(zap => ({ target: "panel", action: "zap", payload: { id: zap.id.toString(), depth: zap.depth, payload: stringify(zap.payload) } }))
 
   return {
     messages: xs.merge(patchGraph$, updateState$, zap$),

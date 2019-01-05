@@ -1,19 +1,22 @@
 import { Stream, Operator } from 'xstream'
-import { uniq }             from 'lodash'
+import { max, map }         from 'lodash'
 import objectId             from './objectId'
+import ZapRegistry, { Zap } from './graph/zapRegistry'
 
 type CycleSource = { type: string }
 type CycleSink   = { type: string }
 
 export type Section = {
-  type: "ins" | "insArr" | "inner";
-  isFinal: boolean;
-  isInitial: boolean;
-  visualizeScope: string | undefined;
-  predVisualizeScope: string | undefined;
-  source: CycleSource | GOperator;
-  stream: Stream<any>;
-  sink: CycleSink | GOperator;
+  type: "ins" | "insArr" | "inner"
+  depth: number
+  breadth: number
+  isFinal: boolean
+  isInitial: boolean
+  visualizeScope: string | undefined
+  predVisualizeScope: string | undefined
+  source: CycleSource | GOperator
+  sink: CycleSink | GOperator
+  stream: Stream<any>
 }
 
 interface GOperator<T = any, R = any> extends Operator<Stream<T>, R> {}
@@ -21,11 +24,11 @@ interface GOperator<T = any, R = any> extends Operator<Stream<T>, R> {}
 type DevtoolStream = Stream<any> & { _isCycleSource?: string, _visualizeSinkKey: string | undefined }
 
 type SectionGraphConfig = {
-  sourceLabel: string;
-  sourceId:    number;
-  streamLabel: string;
-  sinkLabel:   string;
-  sinkId:      number;
+  sourceLabel: string
+  sourceId:    number
+  streamLabel: string
+  sinkLabel:   string
+  sinkId:      number
 }
 
 export type Node = {
@@ -80,7 +83,7 @@ function registerObjectIds(section: Section): SectionGraphConfig {
   }
 }
 
-function registerPossibleParent(this: Graph, section: Section): void {
+function registerPossibleParent(graph: Graph, section: Section): void {
   if (!section.visualizeScope) {
     return
   }
@@ -92,10 +95,10 @@ function registerPossibleParent(this: Graph, section: Section): void {
     type:  'parent'
   }
 
-  this.setNode(parent)
+  graph.setNode(parent)
 }
 
-function registerGraphElements(this: Graph, section: Section, config: SectionGraphConfig): void {
+function registerGraphElements(graph: Graph, section: Section, config: SectionGraphConfig): void {
 
   const sourceNode: Node = {
     id:    config.sourceId.toString(),
@@ -133,45 +136,65 @@ function registerGraphElements(this: Graph, section: Section, config: SectionGra
     type: section.type
   }
 
-  this.setNode(sourceNode)
-  this.setNode(sinkNode)
-  this.setEdge(edge)
+  graph.setNode(sourceNode)
+  graph.setNode(sinkNode)
+  graph.setEdge(edge)
 }
 
-function registerFlattenSourceStream(this: Graph, section: Section): void {
+function registerFlattenSourceStream(graph: Graph, section: Section): void {
   if (section.type == "inner") {
-    this._flattenSourceStreams.push(section.stream)
+    graph.flattenSourceStreams.add(section.stream)
   }
+}
+
+function registerZapRecord(graph: Graph, section: Section, config: SectionGraphConfig): void {
+  graph.setZapRecord(config.sourceId, section.stream, section.depth)
 }
 
 export default class Graph {
-  nodes: { [id: string]: Node }
-  edges: { [id: string]: Edge }
-  _flattenSourceStreams: Array<Stream<any>>
+  private _zapRegistry: ZapRegistry
+  private _sections: Array<Section>;
+
+  public nodes: { [id: string]: Node }
+  public edges: { [id: string]: Edge }
+  public flattenSourceStreams: Set<Stream<any>>;
 
   constructor() {
+    this._zapRegistry = new ZapRegistry()
+    this.flattenSourceStreams = new Set()
+    this._sections = []
     this.nodes = {}
     this.edges = {}
-    this._flattenSourceStreams = []
   }
 
-  register(section: Section): void {
+  public register(section: Section): void {
     const graphConfig: SectionGraphConfig = registerObjectIds(section)
-    registerPossibleParent.call(this, section)
-    registerFlattenSourceStream.call(this, section)
-    registerGraphElements.call(this, section, graphConfig)
+    this._sections.push(section)
+    registerPossibleParent(this, section)
+    registerFlattenSourceStream(this, section)
+    registerGraphElements(this, section, graphConfig)
+    registerZapRecord(this, section, graphConfig)
   }
 
-  setNode(node: Node): void {
+  public setZapRecord(id: number, stream: Stream<any>, depth: number): void {
+    this._zapRegistry.register(id, stream, depth)
+  }
+
+  public setNode(node: Node): void {
     if (!this.nodes[node.id]) { this.nodes[node.id] = node }
   }
 
-  setEdge(edge: Edge): void {
+  public setEdge(edge: Edge): void {
     if (!this.edges[edge.id]) { this.edges[edge.id] = edge }
   }
 
-  flattenSourceStreams(): Array<Stream<any>> {
-    return uniq(this._flattenSourceStreams)
+  public rebaseDepths(): void {
+    const maxDepth = max(map(this._sections, (section: Section) => section.depth)) || 0
+    this._zapRegistry.rebaseDepths(maxDepth)
+  }
+
+  public getZaps(): Stream<Zap> {
+    return this._zapRegistry.getMappedZapStreams()
   }
 }
 

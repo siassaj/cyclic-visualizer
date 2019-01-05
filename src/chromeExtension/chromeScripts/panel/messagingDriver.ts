@@ -1,5 +1,5 @@
 import xs, { Producer, Listener, Stream } from 'xstream'
-import { Patch } from 'diffGraphs'
+import { Patch }                          from 'diffGraphs'
 
 export interface PatchGraphMessage {
   target: "panel"
@@ -13,7 +13,13 @@ export interface UpdateStateMessage {
   payload: any
 }
 
-export type InboundMessage = PatchGraphMessage | UpdateStateMessage
+export interface ZapMessage {
+  action: "zap",
+  target: "panel",
+  payload: { id: string, depth: number, payload: any }
+}
+
+export type InboundMessage = PatchGraphMessage | UpdateStateMessage | ZapMessage
 
 export type OutboundMessage = {
   target: "pageScript",

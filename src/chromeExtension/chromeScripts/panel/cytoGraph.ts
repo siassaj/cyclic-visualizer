@@ -1,24 +1,30 @@
-import { Request } from './cytoscapeDriver'
-import { each, filter, map, isEmpty }                                                from 'lodash'
-import { PatchGraphMessage } from './messagingDriver'
-import { EdgePatchOperation, NodePatchOperation }                                    from 'diffGraphs'
-import { Node } from 'graph'
+import { Request }                                from './cytoscapeDriver'
+import { each, filter, map, isEmpty }             from 'lodash'
+import { PatchGraphMessage, ZapMessage }          from './messagingDriver'
+import { EdgePatchOperation, NodePatchOperation } from 'diffGraphs'
+import { parse }                                  from 'flatted'
 
 export interface CytoConfig {
   layout: any
-  style: any
+  style:  any
+}
+
+export interface Zap {
+  id:      string,
+  depth:   number,
+  payload: any
 }
 
 const layout = {
   name: "klay",
-  fit: false,
+  fit:   false,
   klay: {
-    direction: "RIGHT",
-    fixedAlignment: "LEFTDOWN",
-    mergeEdges: true,
-    feedbackEdges: true,
+    direction:                   "RIGHT",
+    fixedAlignment:              "LEFTDOWN",
+    mergeEdges:                  true,
+    feedbackEdges:               true,
     separateConnectedComponents: true,
-    layoutHierarchy: true
+    layoutHierarchy:             true
   }
 }
 // const layout = {
@@ -96,6 +102,22 @@ export function initCytoConfig() {
         "border-color": "#333333",
         'font-size': '30px'
       }
+    }, {
+      selector: '.zapLinger',
+      style: {
+        'opacity': 1,
+        'border-color': "#e9967a",
+        'background-color': '#e9967a',
+        'line-color': '#e9967a'
+      }
+    }, {
+      selector: '.zap',
+      style: {
+        'opacity': 1,
+        'border-color': "#cd0000",
+        'background-color': '#cd0000',
+        'line-color': '#cd0000'
+      }
     }]
   }
 }
@@ -128,7 +150,7 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
       const additionalEdges = map(filter(message.payload, { op: "add", type: "edge" }), (op) => {
         const edge = (<EdgePatchOperation>op).element
 
-        return { group: "edges", data: { id: edge.id, source: edge.sourceId, target: edge.targetId, label: edge.label } } as cytoscape.ElementDefinition
+        return { group: "edges", selectable: false, data: { id: edge.id, source: edge.sourceId, target: edge.targetId, label: edge.label } } as cytoscape.ElementDefinition
       });
 
       graph.add(additionalNodes)
@@ -182,6 +204,26 @@ export function highlightChain(node: cytoscape.NodeSingular) {
       selected.predecessors().addClass("highlightedPredecessor")
 
       graph.endBatch()
+    }
+  }
+}
+
+export function zapGraph(zapMessage: ZapMessage) {
+  return {
+    category: 'graph',
+    action: 'shamefullyMutate',
+    data: (graph: cytoscape.Core): void => {
+      const zap: Zap = zapMessage.payload
+      const node = graph.getElementById(zap.id)
+
+      node.data('zapDepth', zap.depth)
+      node.data('zapPayload', parse(zap.payload))
+
+      node.addClass('zap')
+
+      setTimeout(() => {
+        node.removeClass('zap')
+      }, 500)
     }
   }
 }
