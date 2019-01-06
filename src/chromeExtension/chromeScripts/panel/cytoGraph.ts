@@ -2,7 +2,6 @@ import { Request }                                from './cytoscapeDriver'
 import { each, filter, map, isEmpty }             from 'lodash'
 import { PatchGraphMessage, ZapMessage }          from './messagingDriver'
 import { EdgePatchOperation, NodePatchOperation } from 'diffGraphs'
-import { parse }                                  from 'flatted'
 
 export interface CytoConfig {
   layout: any
@@ -10,9 +9,9 @@ export interface CytoConfig {
 }
 
 export interface Zap {
-  id:      string,
-  depth:   number,
-  payload: any
+  id:        string,
+  depth:     number,
+  zapDataId: number
 }
 
 const layout = {
@@ -25,7 +24,8 @@ const layout = {
     mergeEdges:                  true,
     feedbackEdges:               true,
     separateConnectedComponents: true,
-    layoutHierarchy:             true
+    layoutHierarchy:             true,
+    inLayerSpacingFactor:        1.5
   }
 }
 // const layout = {
@@ -47,7 +47,7 @@ export function initCytoConfig() {
     elements: {
       nodes: [
         { id: "cycleSources", type: "parent", data: { id: "cycleSources", label: "Cycle Sources"}},
-        { id: "cycleSinks",   type: "parent", data: { id: "cycleSinks", label: "Cycle Sinks"}}
+        { id: "cycleSinks",   type: "parent", data: { id: "cycleSinks",   label: "Cycle Sinks"}}
       ],
       edges: []
     },
@@ -66,35 +66,43 @@ export function initCytoConfig() {
       style: {
         'label': 'data(label)',
         'width': 4,
-        'opacity': 0.05,
+        'opacity': 1,
         "border-width": 3,
         "border-style": "solid",
         "border-color": "white",
         'target-arrow-shape': 'triangle',
-        'line-color': '#333333',
-        'target-arrow-color': '#333333',
+        'line-color': '#eeeeee',
+        'target-arrow-color': '#eeeeee',
         'curve-style': 'bezier'
       },
+    }, {
+      selector: "edge[type = 'inner']",
+      style: {
+        "line-style": "dashed"
+      }
     }, {
       selector: '.highlighted',
       style: {
         'opacity': 1,
         'background-color': '#87ceff',
-        'line-color': '#87ceff'
+        'line-color': '#87ceff',
+        'target-arrow-color': '#87ceff',
       }
     }, {
       selector: '.highlightedPredecessor',
       style: {
         'opacity': 1,
         'background-color': '#7fffd4',
-        'line-color': '#7fffd4'
+        'line-color': '#7fffd4',
+        'target-arrow-color': '#7fffd4',
       }
     }, {
       selector: '.highlightedSuccessor',
       style: {
         'opacity': 1,
         'background-color': '#f08080',
-        'line-color': '#f08080'
+        'line-color': '#f08080',
+        'target-arrow-color': '#f08080',
       }
     }, {
       selector: ':parent',
@@ -112,7 +120,8 @@ export function initCytoConfig() {
         'opacity': 1,
         'border-color': "#e9967a",
         'background-color': '#e9967a',
-        'line-color': '#e9967a'
+        'line-color': '#e9967a',
+        'target-arrow-color': '#e9967a',
       }
     }, {
       selector: '.zap',
@@ -120,7 +129,8 @@ export function initCytoConfig() {
         'opacity': 1,
         'border-color': "#cd0000",
         'background-color': '#cd0000',
-        'line-color': '#cd0000'
+        'line-color': '#cd0000',
+        'target-arrow-color': '#cd0000',
       }
     }]
   }
@@ -143,7 +153,7 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
     action: 'shamefullyMutate',
     data: (graph: cytoscape.Core): void => {
       if (isEmpty(message.payload)) { return }
-      graph.startBatch()
+      // graph.startBatch()
 
       const additionalNodes = map(filter(message.payload, (op => op.op == "add" && op.type == "node" && op.element.type != "parent")), (op) => {
         const node = (<NodePatchOperation>op).element
@@ -154,7 +164,7 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
       const additionalEdges = map(filter(message.payload, (patch => patch.op == "add" && patch.type == "edge" && patch.element.type != "parent")), (op) => {
         const edge = (<EdgePatchOperation>op).element
 
-        return { group: "edges", selectable: false, data: { id: edge.id, source: edge.sourceId, target: edge.targetId, label: edge.label } } as cytoscape.ElementDefinition
+        return { group: "edges", selectable: false, data: { id: edge.id, source: edge.sourceId, target: edge.targetId, label: edge.label, type: edge.type } } as cytoscape.ElementDefinition
       });
 
       graph.add(additionalNodes)
@@ -166,7 +176,7 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
         graph.getElementById(element.id).remove()
       });
 
-      graph.endBatch()
+      // graph.endBatch()
       graph.layout(layout).run()
     }
   }
@@ -219,15 +229,24 @@ export function zapGraph(zapMessage: ZapMessage) {
     data: (graph: cytoscape.Core): void => {
       const zap: Zap = zapMessage.payload
       const node = graph.getElementById(zap.id)
+      const edges = node.outgoers("edge")
 
       node.data('zapDepth', zap.depth)
-      node.data('zapPayload', parse(zap.payload))
+      node.data('zapDataId', zap.zapDataId)
+      node.flashClass('zap', 50)
+      edges.flashClass('zap', 50)
+      node.flashClass('zapLinger', 1500)
+      edges.flashClass('zapLinger', 1500)
+    }
+  }
+}
 
-      node.addClass('zap')
-
-      setTimeout(() => {
-        node.removeClass('zap')
-      }, 10000)
+export function resize() {
+  return {
+    category: 'graph',
+    action: 'shamefullyMutate',
+    data: (graph: cytoscape.Core): void => {
+      graph.resize()
     }
   }
 }

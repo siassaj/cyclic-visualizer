@@ -2,33 +2,42 @@ import xs, { Stream, Listener } from 'xstream'
 import { each, map }  from 'lodash'
 
 export interface Record {
-  id: number
+  id: string
   depth: number
   listener?: Listener<any>
     stream: Stream<any>
 }
 
-export interface Zap {
-  id: number,
-  depth: number,
+export interface ZapData {
+  id: string
   payload: any
+  type: "next" | "error"
+}
+
+export interface Zap {
+  id: string,
+  depth: number,
+  zapDataId?: number,
+  type: "next" | "error" | "complete"
 }
 
 export default class ZapRegistry {
-  private _presenceSet: Set<number>;
+  private _presenceSet: Set<string>;
+  private _zapData: Array<ZapData>;
 
   public records: Array<Record>
 
   constructor() {
     this._presenceSet = new Set()
+    this._zapData     = []
     this.records      = []
   }
 
-  public has(id: number): boolean {
+  public has(id: string): boolean {
     return this._presenceSet.has(id)
   }
 
-  public register(id: number, stream: Stream<any>, depth: number): void {
+  public register(id: string, stream: Stream<any>, depth: number): void {
     this._presenceSet.add(id)
     this.records.push({id, stream, depth})
   }
@@ -37,14 +46,36 @@ export default class ZapRegistry {
   // at the higest initial source. Rebasing sets the highest source to 0
   // and the final sinks to maxDepth
   public rebaseDepths(maxDepth: number): void {
-    each(this.records, (record: Record) => record.depth = maxDepth - record.depth)
-      }
+    each(this.records, (record: Record) => record.depth = maxDepth - record.depth);
+  }
+
+  public setZapData(data: ZapData): number {
+    return this._zapData.push(data)
+  }
 
   public getMappedZapStreams(): Stream<Zap> {
-    const streams: Array<Stream<Zap>> = map(this.records, (record: Record) => {
-      return record.stream.map((payload: any) => ({ id: record.id, depth: record.depth, payload: payload }))
-    })
 
-    return xs.merge(...streams)
+    return xs.create({
+      start: (listener) => {
+        each(this.records, (record: Record) => {
+          record.stream.setDebugListener({
+            next: val => {
+              const zapDataId = this.setZapData({ id: record.id, payload: val, type: "next" })
+              listener.next({ id: record.id, depth: record.depth, zapDataId: zapDataId, type: "next" })
+            },
+            error: err => {
+              const zapDataId = this.setZapData({ id: record.id, payload: err, type: "error" })
+              listener.next({ id: record.id, depth: record.depth, zapDataId: zapDataId, type: "error" })
+            },
+            complete: () => listener.next({id: record.id, depth: record.depth, type: "complete"})
+          })
+        })
+          },
+      stop() {}
+    })
+  }
+
+  public resetZapData(): void {
+    this._zapData = []
   }
 }

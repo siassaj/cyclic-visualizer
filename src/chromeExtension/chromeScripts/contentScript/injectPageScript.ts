@@ -1,10 +1,11 @@
 export default function injectPageScript() {
+  if ((window as any).cyclicVisualizer) { return }
+  (window as any).cyclicVisualizer = true
+
   const scriptElem: HTMLScriptElement = document.createElement('script')
   const source: string = chrome.extension.getURL('./chromeScripts/pageScript.js')
 
-  scriptElem.src = source
-
-  type appendChildType = <T extends Node>(newChild: T) => T
+  scriptElem.src = source;
 
   (document.head || document.documentElement).appendChild(scriptElem);
 

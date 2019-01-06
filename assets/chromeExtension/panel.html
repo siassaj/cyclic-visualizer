@@ -6,54 +6,23 @@
     <meta name="description" content="Cyclic Visualizer DevTool"/>
     <title>Cyclic Visualizer DevTool</title>
     <style>
-      .controlPanel {
-        z-index: 2;
-        position: absolute;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        background: #9de8f2;
-        background: -moz-linear-gradient(-45deg, #9de8f2 0%, #7de8c2 100%);
-        background: -webkit-linear-gradient(-45deg, #9de8f2 0%,#7de8c2 100%);
-        background: linear-gradient(135deg, #9de8f2 0%,#7de8c2 100%);
-        filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#9de8f2', endColorstr='#7de8c2',GradientType=1 );
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        width: 300px;
-      }
-
-      .components {
-        position: absolute;
-        top: 0;
-        left: 0;
-        bottom: 400px;
-        width: 100%;
-        z-index: 1;
-      }
-
-      .graph {
-        position: absolute;
-        top: 400px;
-        left: 0;
-        width: 100%;
+      html, body {
+        margin: 0;
         height: 100%;
-        z-index: 1;
       }
 
-      .config {
+      body > .cycleApp {
         height: 100%;
         width: 100%;
-      }
-
-      .configLabel {
-        flex: 1 0;
       }
 
       label {
         display: flex;
         flex-direction: column;
+      }
+
+      button {
+        cursor: pointer;
       }
     </style>
   </head>

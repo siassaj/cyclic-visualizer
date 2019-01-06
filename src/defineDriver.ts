@@ -2,6 +2,10 @@ import xs, { Stream, Listener } from "xstream"
 import { adapt }                from "@cycle/run/lib/adapt"
 import { includes, isEmpty }    from 'lodash'
 
+type CycleSourceStream<T> = Stream<T> & {
+  _isCycleSource: string
+}
+
 export interface Request {
   category: Category
   _namespace?: Namespace
@@ -15,7 +19,7 @@ export interface Response {
 
 export interface Response$<T extends Response> extends Stream<T> {
   category?: Category;
-  _namespace: Namespace;
+  _namespace?: Namespace;
 }
 
 export interface Response$$<T extends Response> extends Stream<Response$<T>> {
@@ -101,17 +105,17 @@ function isolateSink(sink$: Stream<Request>, scope: Scope) {
 // Isolate the source using the namespace. Each level of isolation
 // will pop off the last namespace name, so order of nesting and
 // duplicated names should be respected
-function isolateSource<R1 extends Request, R2 extends Response>(source: Source<R1, R2>, scope: Scope, sourceConstructor: ISource<R1, R2>, driverOptions: DriverOptions, config: SourceConfig): Source<R1, R2> {
+function isolateSource<R1 extends Request, R2 extends Response>(source: Source<R1, R2>, scope: Scope, sourceConstructor: ISource<R1, R2>, driverOptions: DriverOptions, factoryOptions: FactoryOptions<R1, R2>): Source<R1, R2> {
   // get new stream with the response filtered out if the current scope
   // doesn't exist anywhere in the namespace
   let newUnscopedResult$$ = source.ownAndChildResults$$.filter(response$ => (
     includes(response$._namespace, scope)
   )).map<Response$<R2>>(response$ => { // remove the last element off the namespace
-    response$._namespace.pop()
+    if (response$._namespace) { response$._namespace.pop() }
     return response$
   })
 
-  return new sourceConstructor(source.allResults$$, newUnscopedResult$$, driverOptions, config)
+  return new sourceConstructor(source.allResults$$, newUnscopedResult$$, driverOptions, factoryOptions)
 }
 
 // Source object for window driver
@@ -132,25 +136,25 @@ function isolateSource<R1 extends Request, R2 extends Response>(source: Source<R
 //   scoped responses. You probably don't need to touch this.
 
 export interface ISource<R1 extends Request, R2 extends Response> {
-  new (allResults$$: Stream<any>, ownAndChildResults$$: Stream<any>, driverOptions: object, config: SourceConfig): Source<R1, R2>;
+  new (allResults$$: Stream<any>, ownAndChildResults$$: Stream<any>, driverOptions: object, factoryOptions: FactoryOptions<R1, R2>): Source<R1, R2>;
 }
 
-export class Source<R1 extends Request, R2 extends Response>{
+export class Source<R1 extends Request, R2 extends Response> {
   driverOptions: object;
-  config: any;
+  factoryOptions: FactoryOptions<R1, R2>;
   allResults$$: Response$$<R2>;
   ownAndChildResults$$: Response$$<R2>;
   results$$: Stream<Response$<R2>>;
 
-  constructor(allResults$$: Response$$<R2>, ownAndChildResults$$: Response$$<R2>, driverOptions: object, config: SourceConfig) {
+  constructor(allResults$$: Response$$<R2>, ownAndChildResults$$: Response$$<R2>, driverOptions: object, factoryOptions: FactoryOptions<R1, R2>) {
     this.driverOptions        = driverOptions
-    this.config               = config
+    this.factoryOptions       = factoryOptions
     this.allResults$$         = allResults$$
     this.ownAndChildResults$$ = ownAndChildResults$$
 
     this.results$$ = ownAndChildResults$$.filter(response => isEmpty(response._namespace))
 
-    if (config.isAlwaysListening) {
+    if (factoryOptions.config.isAlwaysListening) {
       this.results$$.addListener({
         next: () => {},
         error: () => {},
@@ -159,13 +163,18 @@ export class Source<R1 extends Request, R2 extends Response>{
     }
   }
 
-  select(category: string): Stream<any> {
-    return this.results$$.filter(result$ => result$.category == category)
+  select(category: string): Stream<Response$<R2>> {
+    const stream: Stream<Response$<R2>> = this.results$$.filter(result$ => result$.category == category);
+
+    (stream as CycleSourceStream<Response$<R2>>)._isCycleSource = this.factoryOptions.name
+
+    return stream
   }
 
   isolateSink(sink$: Stream<Request>, scope: Scope) { return isolateSink(sink$, scope) }
-  isolateSource<R1 extends Request, R2 extends Response>(source: Source<R1, R2>, scope: Scope): Source<R1, R2> {
-    return isolateSource(source, scope, <ISource<R1, R2>>this.constructor, this.driverOptions, this.config)
+
+  isolateSource(source: Source<R1, R2>, scope: Scope): Source<R1, R2> {
+    return isolateSource(source, scope, <ISource<R1, R2>>this.constructor, this.driverOptions, this.factoryOptions)
   }
 }
 
@@ -188,7 +197,7 @@ export function defineDriver<R1 extends Request, R2 extends Response>(factoryOpt
 
       const allResults$$ = adapt(xs.create(producer))
 
-      return new factoryOptions.source(allResults$$, allResults$$, driverOptions, factoryOptions.config)
+      return new factoryOptions.source(allResults$$, allResults$$, driverOptions, factoryOptions)
     }
 
     return driver

@@ -11,6 +11,7 @@
     "noImplicitAny": true,
     "strict": true,
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "baseUrl": "src",
     "paths": {
       "@src/*": ["*"]

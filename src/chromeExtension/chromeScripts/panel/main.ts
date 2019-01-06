@@ -1,5 +1,6 @@
 import xs, { Stream }           from 'xstream'
 import sampleCombine            from 'xstream/extra/sampleCombine'
+import dropRepeats              from 'xstream/extra/dropRepeats'
 import { DOMSource, VNode }     from '@cycle/dom'
 import { TimeSource }           from '@cycle/time'
 import { StateSource, Reducer } from '@cycle/state'
@@ -23,12 +24,14 @@ import {
   zapGraph,
   buildCytoInit,
   CytoConfig,
-  highlightChain
+  highlightChain,
+  resize as resizeGraph
 }                               from './cytoGraph'
 import {
   initCytoConfig as initComponentsConfig,
   buildCytoInit  as buildComponentsInit,
-  patchGraph     as patchComponentsGraph
+  patchGraph     as patchComponentsGraph,
+  resize         as resizeComponents
 }                               from './componentsGraph'
 import view                     from "./view"
 
@@ -38,7 +41,8 @@ export type Component = {
 
 export interface State {
   cytoConfig: CytoConfig | undefined,
-  appState: any
+  appState: any,
+  visiblePanel: "appState" | "components" | "graph"
 }
 
 interface Sources {
@@ -58,8 +62,8 @@ interface Sinks {
 }
 
 export default function main(sources: Sources): Sinks {
-  const cytoElement$ = sources.DOM.select('.graph').element().take(1) as Stream<Element>
-  const cytoGraph$   = sources.cyto.select('graph').map(e => e.graph).take(1)
+  const cytoElement$ = sources.DOM.select('.graph').element().take(1) as Stream<Element>;
+  const cytoGraph$   = sources.cyto.with('graph').map(e => e.graph).take(1)
   // sample combine with cytoGraph$ to make sure we send the patch message after the graph has been initialized
   const patchGraph$    = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(cytoGraph$)).map(patchGraph)
   const initCytoGraph$ = cytoElement$.map((elem: Element) => buildCytoInit(elem as HTMLElement, initCytoConfig()))
@@ -67,8 +71,8 @@ export default function main(sources: Sources): Sinks {
   const layoutGraph$   = sources.DOM.select('.submitLayout').events('click').compose(sampleCombine(sources.state.stream)).map(([_, state]: [any, State]) => relayoutGraph(((state as State).cytoConfig as CytoConfig).layout))
   const zap$           = (sources.messages.filter(m => m.action == "zap") as Stream<ZapMessage>).map(zapGraph)
 
-  const componentsElement$    = sources.DOM.select('.components').element().take(1) as Stream<Element>
-  const componentsGraph$      = sources.cyto.select('components').map(e => e.graph).take(1)
+  const componentsElement$    = sources.DOM.select('.components').element().take(1) as Stream<Element>;
+  const componentsGraph$      = sources.cyto.with('components').map(e => e.graph).take(1)
   const initComponentsGraph$  = componentsElement$.map((elem: Element) => buildComponentsInit(elem as HTMLElement, initComponentsConfig()))
   const patchComponentsGraph$ = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(componentsGraph$)).map(patchComponentsGraph)
 
@@ -114,20 +118,45 @@ export default function main(sources: Sources): Sinks {
     appState: message.payload
   }))
 
-  const traceEdges$ = sources.cyto.select('graph').map(delegate => delegate.on('tap', 'node') as Stream<cytoscape.EventObject>).flatten().filter(e => (e.target && e.target.isNode && e.target.isNode())).map((e: any) => highlightChain(e.target as cytoscape.NodeSingular))
+  const traceEdges$ = sources.cyto.with('graph').map(delegate => delegate.on('tap', 'node') as Stream<cytoscape.EventObject>).flatten().filter(e => (e.target && e.target.isNode && e.target.isNode())).map((e: any) => highlightChain(e.target as cytoscape.NodeSingular))
+
+  const selectAppState$: Stream<Reducer<State>> = sources.DOM.select('.selectAppState').events('click', { preventDefault: true }).map<Reducer<State>>(() => prev => ({
+    ...prev as State,
+    visiblePanel: "appState"
+  }))
+
+  const selectComponents$: Stream<Reducer<State>> = sources.DOM.select('.selectComponents').events('click', { preventDefault: true }).map<Reducer<State>>(() => prev => ({
+    ...prev as State,
+    visiblePanel: "components"
+  }))
+
+  const selectGraph$: Stream<Reducer<State>> = sources.DOM.select('.selectGraph').events('click', { preventDefault: true }).map<Reducer<State>>(() => prev => ({
+    ...prev as State,
+    visiblePanel: "graph"
+  }))
+
+  const componentsVisible$ = (sources.DOM.select('.components').element().debug("e") as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).debug("m").compose(dropRepeats()).debug("d").filter(b => b).debug("f")
+  const graphVisible$ = (sources.DOM.select('.graph').element() as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).compose(dropRepeats()).filter(b => b)
+
+  const resizeComponents$ = componentsVisible$.map(resizeComponents)
+  const resizeGraph$ = graphVisible$.map(resizeGraph)
 
   const state$    = xs.merge(
     initCytoConfig$,
     setCytoLayout$,
     setCytoStyle$,
-    updateAppState$
-  ).startWith(() => ({ appState: undefined, cytoConfig: undefined }))
+    updateAppState$,
+    selectAppState$,
+    selectComponents$,
+    selectGraph$
+  ).startWith(() => ({ appState: undefined, cytoConfig: undefined, visiblePanel: "appState" }))
 
   const time$     = xs.empty()
   const messages$ = xs.empty()
   const cyto$      = xs.merge(
     initCytoGraph$,       patchGraph$,          styleGraph$, layoutGraph$, traceEdges$, zap$,
-    initComponentsGraph$, patchComponentsGraph$
+    resizeGraph$,
+    initComponentsGraph$, patchComponentsGraph$, resizeComponents$
   )
 
   return {

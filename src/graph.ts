@@ -25,10 +25,10 @@ type DevtoolStream = Stream<any> & { _isCycleSource?: string, _visualizeSinkKey:
 
 type SectionGraphConfig = {
   sourceLabel: string
-  sourceId:    number
+  sourceId:    string
   streamLabel: string
   sinkLabel:   string
-  sinkId:      number
+  sinkId:      string
 }
 
 export type Node = {
@@ -61,25 +61,29 @@ function registerObjectIds(section: Section): SectionGraphConfig {
   const stream  = section.stream
   const sink    = section.sink
 
-  let sourceObject
+  let sourceId: string
+
   if (section.isInitial) {
-    if (isKnownCycleSource(source)) {
-      sourceObject = cycleSources[<string>source.type]
-    } else {
-      sourceObject = source
-      cycleSources[source.type] = source
-    }
+    sourceId = `source.${source.type}`
   } else {
-    sourceObject = source
+    sourceId = objectId(source).toString()
+  }
+
+  let sinkId: string
+
+  if (section.isFinal) {
+    sinkId = `sink.${sink.type}`
+  } else {
+    sinkId = objectId(sink).toString()
   }
 
   const sinkKey = (<DevtoolStream>stream)._visualizeSinkKey
   return {
     sourceLabel: sinkKey ? `${source.type}: ${sinkKey}` : source.type,
-    sourceId:    objectId(sourceObject),
+    sourceId:    sourceId,
     streamLabel: (<DevtoolStream>stream)._isCycleSource || sinkKey || "",
     sinkLabel:   sink.type,
-    sinkId:      objectId(sink)
+    sinkId:      sinkId
   }
 }
 
@@ -181,14 +185,16 @@ export default class Graph {
 
   public register(section: Section): void {
     const graphConfig: SectionGraphConfig = registerObjectIds(section)
+
     this._sections.push(section)
+
     registerPossibleParent(this, section)
     registerFlattenSourceStream(this, section)
     registerGraphElements(this, section, graphConfig)
     registerZapRecord(this, section, graphConfig)
   }
 
-  public setZapRecord(id: number, stream: Stream<any>, depth: number): void {
+  public setZapRecord(id: string, stream: Stream<any>, depth: number): void {
     this._zapRegistry.register(id, stream, depth)
   }
 

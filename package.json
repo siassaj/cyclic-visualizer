@@ -39,6 +39,7 @@
     "@types/dagre": "^0.7.40",
     "@types/lodash": "^4.14.119",
     "browserify": "^16.2.3",
+    "csx": "^9.0.0",
     "cytoscape": "^3.3.1",
     "cytoscape-cola": "^2.3.0",
     "cytoscape-dagre": "^2.2.2",
@@ -49,6 +50,7 @@
     "jest": "^23.6.0",
     "klay": "^2.4.0",
     "lodash": "^4.17.11",
+    "typestyle": "^2.0.1",
     "webworker-threads": "^0.7.17",
     "xstream": "^11.7.0"
   },

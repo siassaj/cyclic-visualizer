@@ -13,24 +13,36 @@ interface Message {
 }
 
 function handleContentScriptMessage(panelWindow: Window, message: Message) {
-  if (message.target = "panel") {
+  if (message.target && message.target == "panel") {
     panelWindow.postMessage(message, '*')
+  } else if (message.action == "identifyCyclejsApp" && message.payload == true) {
+    panelWindow.postMessage("restartCycleApp", '*')
   }
 }
 
 function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPanel) {
   const port: chrome.runtime.Port = chrome.runtime.connect()
 
-  function injectContentScript(): void  {
-    extensionPanel.onShown.removeListener(injectContentScript)
-
+  function injectContentScript(tabId: number): void  {
     port.postMessage({
       action: "injectContentScript",
-      tabId: chrome.devtools.inspectedWindow.tabId,
+      tabId: tabId,
       scriptToInject: "chromeScripts/contentScript.js"
     })
+  }
 
-    setInterval(() => port.postMessage("sending data from devtools to contentScript"), 1000)
+  function setUpContentScript(panelWindow: Window): void {
+    extensionPanel.onShown.removeListener(setUpContentScript)
+
+    injectContentScript(chrome.devtools.inspectedWindow.tabId)
+
+    function pageChangeListener(tabId: number, changes: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) {
+
+      if (tabId == chrome.devtools.inspectedWindow.tabId && changes.status == "complete") {
+        injectContentScript(tabId)
+      }
+    }
+    chrome.tabs.onUpdated.addListener(pageChangeListener)
   }
 
   function turnOnCommunication(window: Window) {
@@ -38,7 +50,7 @@ function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPane
   }
 
   // Inject the content script once
-  extensionPanel.onShown.addListener(injectContentScript)
+  extensionPanel.onShown.addListener(setUpContentScript)
   extensionPanel.onShown.addListener(turnOnGraph)
   extensionPanel.onShown.addListener(turnOnCommunication)
   extensionPanel.onHidden.addListener(turnOffGraph)

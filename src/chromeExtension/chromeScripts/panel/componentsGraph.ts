@@ -36,7 +36,8 @@ const layout = {
   directed:                    true,
   grid:                        true,
   nodeDimensionsIncludeLabels: true,
-  spacingFactor:               1
+  spacingFactor:               1,
+  fit:                         true
 }
 
 export function initCytoConfig() {
@@ -139,7 +140,7 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
     action: 'shamefullyMutate',
     data: (graph: cytoscape.Core): void => {
       if (isEmpty(message.payload)) { return }
-      graph.startBatch()
+      // graph.startBatch()
 
       const additionalNodes = map(filter(message.payload, { op: "add", type: "node", element: { type: "parent" } }), (op) => {
         const node = (<NodePatchOperation>op).element
@@ -164,8 +165,20 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
         graph.getElementById(element.id).remove()
       });
 
-      graph.endBatch()
+      // graph.endBatch()
       graph.layout(layout).run()
+      graph.center()
+    }
+  }
+}
+
+
+export function resize() {
+  return {
+    category: 'components',
+    action: 'shamefullyMutate',
+    data: (graph: cytoscape.Core): void => {
+      graph.resize()
     }
   }
 }

@@ -1,5 +1,5 @@
 import xs, { Stream }                  from 'xstream'
-import { defineDriver, Source as Base, Response$$ } from 'defineDriver'
+import { defineDriver, Source as Base, Response$$, FactoryOptions } from 'defineDriver'
 import * as cytoscape                  from 'cytoscape'
 import * as dagre                      from 'cytoscape-dagre'
 import * as klay                       from 'cytoscape-klay'
@@ -42,12 +42,12 @@ export interface Response {
 
 export interface IDelegate {
   graph: cytoscape.Core | undefined
-  on: (events: string, target: string) => Stream<cytoscape.EventObject> | void
+  on: (events: string, target: string) => Stream<cytoscape.EventObject | never>
 }
 export class DummyDelegate implements IDelegate {
   graph: undefined
 
-  on(): void { }
+  on()  { return xs.empty() }
 }
 
 export class GraphDelegate implements IDelegate {
@@ -76,15 +76,13 @@ export class Source extends Base<Request, Response> {
     allResults$$: Response$$<Response>,
     ownAndChildResults$$: Response$$<Response>,
     options: object,
-    config: { isAlwaysListening: boolean }
+    factoryOptions: FactoryOptions<Request, Response>
   ) {
-    super(allResults$$, ownAndChildResults$$, options, config)
+    super(allResults$$, ownAndChildResults$$, options, factoryOptions)
   }
 
-  select(category: string): Stream<IDelegate> {
-    return (<Stream<Stream<Response>>>super.select(category)).
-      flatten().
-      map(resp => resp.delegate)
+  with(category: string): Stream<IDelegate> {
+    return super.select(category).flatten().map<IDelegate>(resp => resp.delegate)
   }
 }
 

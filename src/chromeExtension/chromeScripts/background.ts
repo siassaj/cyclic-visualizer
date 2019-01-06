@@ -30,6 +30,7 @@ function initDevtoolsConnection(devToolsConnection: chrome.runtime.Port) {
   }
 
   devToolsConnection.onMessage.addListener(messageListener)
+
   function disconnectListener(): void {
     devToolsConnection.onMessage.removeListener(messageListener)
     devToolsConnection.onDisconnect.removeListener(disconnectListener)

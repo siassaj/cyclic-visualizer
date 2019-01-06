@@ -16,16 +16,18 @@ export interface StateMessage {
 export interface ZapMessage {
   action: "zap",
   target: "panel",
-  payload: { id: string, depth: number, payload: any }
+  payload: { id: string, depth: number, zapDataId?: number }
+}
+
+export interface SetZapSpeedMessage {
+  action: "setZapSpeed",
+  target: "pageScript",
+  payload: number
 }
 
 export type OutboundMessage = PatchMessage | StateMessage | ZapMessage
 
-export type InboundMessage = {
-  target: "pageScript",
-  action: string,
-  payload: any
-}
+export type InboundMessage = SetZapSpeedMessage
 
 interface MyListener<T> extends Producer<T> {
   messageListener: (e: MessageEvent) => void,

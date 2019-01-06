@@ -6,12 +6,13 @@ import { OutboundMessage,
          InboundMessage,
          PatchMessage,
          StateMessage,
-         ZapMessage
+         ZapMessage,
+         SetZapSpeedMessage
        }    from './messagingDriver'
 import { buildGraph }                                      from 'buildGraph'
 import diff                                                from 'diffGraphs'
 import Graph                                               from 'graph'
-import { stringify }                                       from 'flatted'
+import timeSpread                                          from 'timeSpread'
 
 type Sources = {
   messages:   Stream<InboundMessage>;
@@ -28,7 +29,7 @@ type State = any
 
 // Collect & merge all the in streams for operators with an inner stream. Each time the in stream fires the graph could be rebuilt, so fire
 function detectGraphChanges(graph: Graph): Stream<any> {
-  return xs.merge( ...graph.flattenSourceStreams).compose(dropUntil(xs.periodic(10).take(1)))
+  return xs.merge( ...graph.flattenSourceStreams).compose(dropUntil(xs.periodic(10).take(1))).take(1)
 }
 
 type Acc = { newGraph: Graph, oldGraph: Graph }
@@ -40,17 +41,25 @@ function buildGraphUsingAcc(acc: Acc, sinks: AppSinks): Acc {
 export default function main(sources: Sources): Sinks {
   const graphAcc$:           Stream<Acc>             = sources.appSinks.fold(buildGraphUsingAcc, { newGraph: new Graph(), oldGraph: new Graph() })
   const graph$:              Stream<Graph>           = graphAcc$.map((acc) => acc.newGraph)
-  const graphChangeTrigger$: Stream<AppSinksMessage> = graph$.map(detectGraphChanges).flatten().map<AppSinksMessage>((_) => ({action: "fetch"}))
+  const graphChangeTrigger$: Stream<AppSinksMessage> = graph$.map(detectGraphChanges).flatten().map<AppSinksMessage>((_) => ({action: "fetch"})).debug('graphChangeTrigger')
 
   const appState$    = sources.appSources.map(sources => <Stream<State>>sources.state.stream).flatten()
 
   const updateState$ = appState$.map<StateMessage>(state => ({ target: "panel", action: "updateState", payload: state }))
   const patchGraph$  = graphAcc$.map<PatchMessage>(acc => ({ target: "panel", action: "patchGraph",  payload: diff(acc.newGraph, acc.oldGraph) })).debug('patch')
+
+  const zapSpeed$ = sources.messages.filter(m => m.action == "setZapSpeed").map((m: SetZapSpeedMessage) => m.payload).startWith(20)
+
   const zap$         = graph$.map(graph => graph.getZaps()).flatten().
-    map<ZapMessage>(zap => ({ target: "panel", action: "zap", payload: { id: zap.id.toString(), depth: zap.depth, payload: stringify(zap.payload) } }))
+    map<ZapMessage>(zap => ({ target: "panel", action: "zap", payload: { id: zap.id.toString(), depth: zap.depth, zapDataId: zap.zapDataId } }))
+
+  const timeSpreadZapArry$ = zapSpeed$.map(speed => zap$.compose(timeSpread(speed))).flatten()
+    // .sampleCombine(zapSpeed$).map(([zap: Zap, speed: number]) => )
+
+  const timeSpreadZap$ = timeSpreadZapArry$.map((zapAry: Array<ZapMessage>) => xs.fromArray(zapAry)).flatten()
 
   return {
-    messages: xs.merge(patchGraph$, updateState$, zap$),
+    messages: xs.merge(patchGraph$, updateState$, timeSpreadZap$),
     appSinks: graphChangeTrigger$
   }
 }

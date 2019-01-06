@@ -16,7 +16,7 @@ export interface UpdateStateMessage {
 export interface ZapMessage {
   action: "zap",
   target: "panel",
-  payload: { id: string, depth: number, payload: any }
+  payload: { id: string, depth: number, zapDataId: number }
 }
 
 export type InboundMessage = PatchGraphMessage | UpdateStateMessage | ZapMessage
