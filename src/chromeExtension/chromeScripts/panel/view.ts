@@ -6,7 +6,7 @@ import { style }                  from 'typestyle'
 
 import {
   VNode,
-  h1, main, div, label, textarea, button, br, pre
+  h1, main, div, label, textarea, button, br, pre, input
 } from '@cycle/dom'
 
 interface Streams {
@@ -52,7 +52,50 @@ const s = {
     }
   }),
 
+  componentsPanel: style({
+    height: '100%',
+    width: '100%',
+    display: 'none'
+  }),
+
+  zapSlider: style({
+    '-webkit-appearance': 'none',  /* Override default CSS styles */
+    appearance: 'none',
+    width: '50%',
+    height: '25px',
+    background: '#d3d3d3',
+    outline: 'none',
+    opacity: 0.7,
+    '-webkit-transition': '0.2s',
+    transition: 'opacity 0.2s',
+
+    $nest: {
+      ':hover': {
+        opacity: 1
+      },
+      '::-webkit-slider-thumb': {
+        '-webkit-appearance': 'none',
+        appearance: 'none',
+        width: '25px',
+        height: '25px',
+        background: color('lightBlue'),
+        cursor: 'pointer',
+      },
+      '::-moz-range-thumb': {
+        width: '25px',
+        height: '25px',
+        background: color('lightBlue'),
+        cursor: 'pointer'
+      }
+    }
+  }),
+
   components: style({
+    height: '100%',
+    width: '100%',
+  }),
+
+  graphPanel: style({
     height: '100%',
     width: '100%',
     display: 'none'
@@ -61,10 +104,9 @@ const s = {
   graph: style({
     height: '100%',
     width: '100%',
-    display: 'none'
   }),
 
-  appState: style({
+  appStatePanel: style({
     height: '100%',
     width: '100%',
     display: 'none'
@@ -85,22 +127,17 @@ export default function view(streams: Streams): Stream<VNode> {
       button(`.${s.controlButton}.selectComponents`, "Component Hierarchy"),
       button(`.${s.controlButton}.selectGraph`, "Application Graph")
     ]),
-    pre(`.${s.appState}.appState`, { class: { [s.visible]: state.visiblePanel == "appState" } }, JSON.stringify(state.appState, null, 2)),
-    div(`.${s.components}.components`, { class: { [s.visible]: state.visiblePanel == "components" } }),
-    div(`.${s.graph}.graph`, { class: { [s.visible]: state.visiblePanel == "graph" } })
+    pre(`.${s.appStatePanel}.appStatePanel`, { class: { [s.visible]: state.visiblePanel == "appState" } }, JSON.stringify(state.appState, null, 2)),
+    div(`.${s.componentsPanel}.componentsPanel`, { class: { [s.visible]: state.visiblePanel == "components" } }, [
+      div(`.${s.components}.components`)
+    ]),
+    div(`.${s.graphPanel}.graphPanel`, { class: { [s.visible]: state.visiblePanel == "graph" } }, [
+      label([
+        `Zap Speed: ${state.zapSpeed}`,
+        input(`.${s.zapSlider}.zapSlider`, { props: { type: "range", min: 1, max: 1500, value: 20}})
+      ]),
+
+      div(`.${s.graph}.graph`)
+    ])
   ]))
 }
-
-
-// label([
-//   "Layout",
-//   textarea(".layoutConfig", { props: { value: JSON.stringify(state.cytoConfig ? state.cytoConfig.layout : undefined, null, 2) } })
-// ]),
-// br(),
-// button(".submitLayout", "ReLayout"),
-// label([
-//   "Style",
-//   textarea(".styleConfig", { props: { value: JSON.stringify(state.cytoConfig ? state.cytoConfig.style : undefined, null, 2) } })
-// ]),
-// br(),
-// button(".submitStyle", "ReStyle")

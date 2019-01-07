@@ -39,24 +39,21 @@ function buildGraphUsingAcc(acc: Acc, sinks: AppSinks): Acc {
 }
 
 export default function main(sources: Sources): Sinks {
-  const graphAcc$:           Stream<Acc>             = sources.appSinks.fold(buildGraphUsingAcc, { newGraph: new Graph(), oldGraph: new Graph() })
-  const graph$:              Stream<Graph>           = graphAcc$.map((acc) => acc.newGraph)
-  const graphChangeTrigger$: Stream<AppSinksMessage> = graph$.map(detectGraphChanges).flatten().map<AppSinksMessage>((_) => ({action: "fetch"})).debug('graphChangeTrigger')
+  const graphAcc$: Stream<Acc> = sources.appSinks.fold(buildGraphUsingAcc, { newGraph: new Graph(), oldGraph: new Graph() })
+  const graph$: Stream<Graph> = graphAcc$.map((acc) => acc.newGraph)
+  const graphChangeTrigger$: Stream<AppSinksMessage> = graph$.map(detectGraphChanges).flatten().map<AppSinksMessage>((_) => ({action: "fetch"}))
 
-  const appState$    = sources.appSources.map(sources => <Stream<State>>sources.state.stream).flatten()
+  const appState$ = sources.appSources.map(sources => <Stream<State>>sources.state.stream).flatten()
 
   const updateState$ = appState$.map<StateMessage>(state => ({ target: "panel", action: "updateState", payload: state }))
-  const patchGraph$  = graphAcc$.map<PatchMessage>(acc => ({ target: "panel", action: "patchGraph",  payload: diff(acc.newGraph, acc.oldGraph) })).debug('patch')
+  const patchGraph$ = graphAcc$.map<PatchMessage>(acc => ({ target: "panel", action: "patchGraph",  payload: diff(acc.newGraph, acc.oldGraph) }))
 
   const zapSpeed$ = sources.messages.filter(m => m.action == "setZapSpeed").map((m: SetZapSpeedMessage) => m.payload).startWith(20)
 
-  const zap$         = graph$.map(graph => graph.getZaps()).flatten().
+  const zap$ = graph$.map(graph => graph.getZaps()).flatten().
     map<ZapMessage>(zap => ({ target: "panel", action: "zap", payload: { id: zap.id.toString(), depth: zap.depth, zapDataId: zap.zapDataId } }))
 
-  const timeSpreadZapArry$ = zapSpeed$.map(speed => zap$.compose(timeSpread(speed))).flatten()
-    // .sampleCombine(zapSpeed$).map(([zap: Zap, speed: number]) => )
-
-  const timeSpreadZap$ = timeSpreadZapArry$.map((zapAry: Array<ZapMessage>) => xs.fromArray(zapAry)).flatten()
+  const timeSpreadZap$ = zap$.compose(timeSpread(zapSpeed$)).map((zapAry: Array<ZapMessage>) => xs.fromArray(zapAry)).flatten().debug("Sending Zaps")
 
   return {
     messages: xs.merge(patchGraph$, updateState$, timeSpreadZap$),

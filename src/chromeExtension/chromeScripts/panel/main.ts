@@ -14,7 +14,8 @@ import {
   Request as MessagingRequest,
   PatchGraphMessage,
   UpdateStateMessage,
-  ZapMessage
+  ZapMessage,
+  SetZapSpeedMessage
 }                               from './messagingDriver'
 import {
   initCytoConfig,
@@ -42,7 +43,8 @@ export type Component = {
 export interface State {
   cytoConfig: CytoConfig | undefined,
   appState: any,
-  visiblePanel: "appState" | "components" | "graph"
+  visiblePanel: "appState" | "components" | "graph",
+  zapSpeed: number
 }
 
 interface Sources {
@@ -78,36 +80,6 @@ export default function main(sources: Sources): Sinks {
 
   const view$     = view({parent: sources.state.stream})
 
-  const setCytoLayout$    = sources.DOM.select('.layoutConfig').events('input').map((e: Event) => {
-    console.log('layout', (<any>e.currentTarget).value)
-    try {
-      return JSON.parse((e.currentTarget as HTMLInputElement).value)
-    } catch (e) {
-      return null
-    }
-  }).filter(e => e ? true : false).map<Reducer<State>>(layout => prev => ({
-    ...prev as State,
-    cytoConfig: {
-      ...((prev as State).cytoConfig as CytoConfig),
-      layout: layout
-    }
-  }))
-
-  const setCytoStyle$    = sources.DOM.select('.styleConfig').events('input').map((e: Event) => {
-    console.log('style', (<any>e.currentTarget).value)
-    try {
-      return JSON.parse((e.currentTarget as HTMLInputElement).value)
-    } catch (e) {
-      return null
-    }
-  }).filter(e => e ? true : false).map<Reducer<State>>(style => prev => ({
-    ...prev as State,
-    cytoConfig: {
-      ...((prev as State).cytoConfig as CytoConfig),
-      style: style
-    }
-  }))
-
   const initCytoConfig$   = initCytoGraph$.map<Reducer<State>>(config => prev => ({
     ...prev as State,
     cytoConfig: { layout: config.data.layout, style: config.data.style }
@@ -135,24 +107,30 @@ export default function main(sources: Sources): Sinks {
     visiblePanel: "graph"
   }))
 
-  const componentsVisible$ = (sources.DOM.select('.components').element().debug("e") as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).debug("m").compose(dropRepeats()).debug("d").filter(b => b).debug("f")
+  const setZapSpeed$: Stream<Reducer<State>> = sources.DOM.select('.zapSlider').events('input').map((e: Event) => parseInt((e.target as HTMLInputElement).value || "20")).compose(dropRepeats()).map<Reducer<State>>(speed => prev => ({
+    ...prev as State,
+    zapSpeed: speed
+  }))
+
+  const componentsVisible$ = (sources.DOM.select('.components').element() as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).compose(dropRepeats()).filter(b => b)
   const graphVisible$ = (sources.DOM.select('.graph').element() as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).compose(dropRepeats()).filter(b => b)
 
   const resizeComponents$ = componentsVisible$.map(resizeComponents)
   const resizeGraph$ = graphVisible$.map(resizeGraph)
 
+  const dispatchZapSpeed$: Stream<SetZapSpeedMessage> = sources.state.stream.map<SetZapSpeedMessage>(state => ({ action: 'setZapSpeed', target: 'pageScript', payload: state.zapSpeed }))
+
   const state$    = xs.merge(
     initCytoConfig$,
-    setCytoLayout$,
-    setCytoStyle$,
     updateAppState$,
     selectAppState$,
     selectComponents$,
-    selectGraph$
-  ).startWith(() => ({ appState: undefined, cytoConfig: undefined, visiblePanel: "appState" }))
+    selectGraph$,
+    setZapSpeed$
+  ).startWith(() => ({ appState: undefined, cytoConfig: undefined, visiblePanel: "appState", zapSpeed: 20 }))
 
   const time$     = xs.empty()
-  const messages$ = xs.empty()
+  const messages$ = dispatchZapSpeed$
   const cyto$      = xs.merge(
     initCytoGraph$,       patchGraph$,          styleGraph$, layoutGraph$, traceEdges$, zap$,
     resizeGraph$,

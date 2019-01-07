@@ -14,18 +14,20 @@ export interface UpdateStateMessage {
 }
 
 export interface ZapMessage {
-  action: "zap",
   target: "panel",
+  action: "zap",
   payload: { id: string, depth: number, zapDataId: number }
+}
+
+export interface SetZapSpeedMessage {
+  target: "pageScript",
+  action: "setZapSpeed",
+  payload: number
 }
 
 export type InboundMessage = PatchGraphMessage | UpdateStateMessage | ZapMessage
 
-export type OutboundMessage = {
-  target: "pageScript",
-  action: string,
-  payload: any
-}
+export type OutboundMessage = SetZapSpeedMessage
 
 export interface Source extends Stream<InboundMessage> {}
 
@@ -40,11 +42,7 @@ export default function makeMessagingDriver(window: Window) {
   return function(sink$: Stream<OutboundMessage>) {
 
     sink$.addListener({
-      next: (message: OutboundMessage) => window.postMessage({
-        target: message.target,
-        action: message.action,
-        payload: message.payload
-      }, '*')
+      next: (message: OutboundMessage) => { window.postMessage(message, '*') }
     })
 
     let listener: Listener<any>

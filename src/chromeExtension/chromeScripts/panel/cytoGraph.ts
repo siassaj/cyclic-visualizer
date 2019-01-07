@@ -222,6 +222,24 @@ export function highlightChain(node: cytoscape.NodeSingular) {
   }
 }
 
+const flashClassRegistry: Map<string, { [k: string]: NodeJS.Timeout }> = new Map()
+
+export function flashClass(elems: cytoscape.CollectionReturnValue, klass: string, duration: number): void {
+  each(elems, elem => {
+    const id: string = elem.id()
+
+    const nodeClassTimeoutIds = flashClassRegistry.get(id) || {}
+
+    if (nodeClassTimeoutIds[klass]) { clearTimeout(nodeClassTimeoutIds[klass]) }
+
+    elem.addClass(klass)
+    nodeClassTimeoutIds[klass] = setTimeout(() => { elem.removeClass(klass) }, duration)
+
+    flashClassRegistry.set(id, nodeClassTimeoutIds)
+  });
+}
+
+
 export function zapGraph(zapMessage: ZapMessage) {
   return {
     category: 'graph',
@@ -233,10 +251,10 @@ export function zapGraph(zapMessage: ZapMessage) {
 
       node.data('zapDepth', zap.depth)
       node.data('zapDataId', zap.zapDataId)
-      node.flashClass('zap', 50)
-      edges.flashClass('zap', 50)
-      node.flashClass('zapLinger', 1500)
-      edges.flashClass('zapLinger', 1500)
+      flashClass(node, 'zap', 50)
+      flashClass(edges, 'zap', 50)
+      flashClass(node, 'zapLinger', 1500)
+      flashClass(edges, 'zapLinger', 1500)
     }
   }
 }

@@ -48,9 +48,7 @@ export default function makeMessagingDriver(window: Window) {
     let listener: Listener<any>
 
     let messageListener = (e: MessageEvent): void => {
-      if (e.data.target == 'pageScript') {
-        listener.next(e.data)
-      }
+      if (e.data.target == 'pageScript') { listener.next(e.data) }
     }
 
     return xs.create(<MyListener<any>>{

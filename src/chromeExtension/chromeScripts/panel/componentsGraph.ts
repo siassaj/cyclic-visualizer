@@ -154,8 +154,6 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
         return { group: "edges", selectable: false, data: { id: edge.id, source: edge.sourceId, target: edge.targetId, label: edge.label } } as cytoscape.ElementDefinition
       });
 
-      console.log("Additional EDges", additionalEdges)
-
       graph.add(additionalNodes)
       graph.add(additionalEdges)
 

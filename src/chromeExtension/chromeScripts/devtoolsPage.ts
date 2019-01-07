@@ -12,7 +12,7 @@ interface Message {
   payload: any
 }
 
-function handleContentScriptMessage(panelWindow: Window, message: Message) {
+function handleIncomingMessage(panelWindow: Window, message: Message) {
   if (message.target && message.target == "panel") {
     panelWindow.postMessage(message, '*')
   } else if (message.action == "identifyCyclejsApp" && message.payload == true) {
@@ -21,10 +21,10 @@ function handleContentScriptMessage(panelWindow: Window, message: Message) {
 }
 
 function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPanel) {
-  const port: chrome.runtime.Port = chrome.runtime.connect()
+  const portToBackground: chrome.runtime.Port = chrome.runtime.connect()
 
   function injectContentScript(tabId: number): void  {
-    port.postMessage({
+    portToBackground.postMessage({
       action: "injectContentScript",
       tabId: tabId,
       scriptToInject: "chromeScripts/contentScript.js"
@@ -46,7 +46,9 @@ function initExtensionPanel(extensionPanel: chrome.devtools.panels.ExtensionPane
   }
 
   function turnOnCommunication(window: Window) {
-    port.onMessage.addListener((message: Message, _) => handleContentScriptMessage(window, message))
+    portToBackground.onMessage.addListener((message: Message, _) => handleIncomingMessage(window, message))
+
+    window.addEventListener('message', (e: MessageEvent) => { if (e.data.target && e.data.target != 'panel') { portToBackground.postMessage(e.data) } })
   }
 
   // Inject the content script once

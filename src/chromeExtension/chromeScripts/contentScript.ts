@@ -1,25 +1,23 @@
 import injectPageScript from './contentScript/injectPageScript'
 
 interface Message {
-  type: never
-  payload: never
+  action: string
+  target: string
+  payload: any
 }
 
-function handleDevToolMessage(message: Message, port: chrome.runtime.Port) {
+function postToPageScript(message: Message): void {
+  window.postMessage(message, '*')
 }
 
-function handlePageScriptEvent(event: MessageEvent, port: chrome.runtime.Port) {
+function postToPanel(event: MessageEvent, port: chrome.runtime.Port): void {
   port.postMessage(event.data)
 }
 
-function initContentScriptListener(port: chrome.runtime.Port) {
-  port.onMessage.addListener(handleDevToolMessage)
+function initContentScriptListener(portToBackground: chrome.runtime.Port): void {
+  portToBackground.onMessage.addListener(postToPageScript)
 
-  window.addEventListener(
-    'message',
-    (e: MessageEvent) => handlePageScriptEvent(e, port),
-    false
-  )
+  window.addEventListener('message', (e: MessageEvent) => { if (e.data.target && e.data.target != "pageScript") { postToPanel(e, portToBackground) }})
 
   injectPageScript()
 }
