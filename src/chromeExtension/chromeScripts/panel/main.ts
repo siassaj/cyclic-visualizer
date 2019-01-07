@@ -6,8 +6,7 @@ import { TimeSource }           from '@cycle/time'
 import { StateSource, Reducer } from '@cycle/state'
 import {
   Source as CytoSource,
-  Request as CytoRequest,
-  IDelegate
+  Request as CytoRequest
 }                               from './cytoscapeDriver'
 import {
   Source as MessagingSource,
@@ -63,6 +62,11 @@ interface Sinks {
   messages: Stream<MessagingRequest>;
 }
 
+const scale: number = Math.log(1500) / 100
+function logSlider(position: number): number {
+  return Math.round(Math.exp(scale * position))
+}
+
 export default function main(sources: Sources): Sinks {
   const cytoElement$ = sources.DOM.select('.graph').element().take(1) as Stream<Element>;
   const cytoGraph$   = sources.cyto.with('graph').map(e => e.graph).take(1)
@@ -107,7 +111,7 @@ export default function main(sources: Sources): Sinks {
     visiblePanel: "graph"
   }))
 
-  const setZapSpeed$: Stream<Reducer<State>> = sources.DOM.select('.zapSlider').events('input').map((e: Event) => parseInt((e.target as HTMLInputElement).value || "20")).compose(dropRepeats()).map<Reducer<State>>(speed => prev => ({
+  const setZapSpeed$: Stream<Reducer<State>> = sources.DOM.select('.zapSlider').events('input').map((e: Event) => parseInt((e.target as HTMLInputElement).value || "20")).compose(dropRepeats()).map(logSlider).map<Reducer<State>>(speed => prev => ({
     ...prev as State,
     zapSpeed: speed
   }))

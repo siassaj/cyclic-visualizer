@@ -134,7 +134,7 @@ export default function view(streams: Streams): Stream<VNode> {
     div(`.${s.graphPanel}.graphPanel`, { class: { [s.visible]: state.visiblePanel == "graph" } }, [
       label([
         `Zap Speed: ${state.zapSpeed}`,
-        input(`.${s.zapSlider}.zapSlider`, { props: { type: "range", min: 1, max: 1500, value: 20}})
+        input(`.${s.zapSlider}.zapSlider`, { props: { type: "range", min: 0, max: 100, value: 40.96324348220412}})
       ]),
 
       div(`.${s.graph}.graph`)

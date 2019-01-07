@@ -1,10 +1,9 @@
-import xs, { Operator, Stream, Subscription } from 'xstream';
+import xs, { Operator, Stream, Subscription } from 'xstream'
 
 class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
   private periodSubscription: Subscription | undefined
   private period: number
   private timeoutId: any
-  private intervalId: any
   private queue: Array<T>;
   private period$: Stream<number>;
 
@@ -14,12 +13,11 @@ class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
 
   constructor(period$: Stream<number>, ins: Stream<T>) {
     this.ins = ins
-    this.out = xs.empty()
-    this.period$ = period$
+    this.out = null as any as Stream<Array<T>>
+      this.period$ = period$
     this.period = 20
     this.queue = []
     this.timeoutId = null
-    this.intervalId = null
   }
 
   public _start(out: Stream<Array<T>>): void {
@@ -30,19 +28,10 @@ class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
 
   public _stop(): void {
     this.ins._remove(this)
-    this.out = xs.empty()
-    this.queue = []
+    this.out = null as any as Stream<Array<T>>
+      this.queue = []
     if (this.periodSubscription) { this.periodSubscription.unsubscribe() }
     this.timeoutId = null
-    this.intervalId = null
-  }
-
-  private clearInterval() {
-    const id = this.intervalId
-    if (id !== null) {
-      clearTimeout(id)
-      this.intervalId = null
-    }
   }
 
   private clearTimeout() {
@@ -59,8 +48,7 @@ class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
 
     this.queue.push(t)
 
-    this.clearTimeout()
-    this.timeoutId = setTimeout(() => this.schedule(), 16)
+    this.schedule()
   }
 
   private schedule() {
@@ -71,47 +59,43 @@ class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
 
     if (q.length === 0) {
       return
-    } else if (q.length === 1) {
-      u._n([q.shift() as T])
     } else {
       this.scheduleAsNormal()
     }
   }
 
   private scheduleAsNormal() {
-    this.clearInterval();
-    const u = this.out;
-    const q = this.queue;
-
-    u._n([q.shift() as T]);
+    this.clearTimeout()
+    const u = this.out
+    const q = this.queue
 
     const func = () => {
       if (q.length === 0) {
-        this.clearInterval()
+        this.clearTimeout()
         return
       } else {
-        u._n([q.shift() as T]);
+        u._n([q.shift() as T])
       }
 
-      this.intervalId = setTimeout(func, this.period)
+      this.timeoutId = setTimeout(func, this.period)
     }
 
-    this.intervalId = setTimeout(func, this.period)
+    this.timeoutId = setTimeout(func, this.period)
   }
 
   public _e(err: any) {
-    const u = this.out;
-    if (!u) {
-      return;
-    }
-    this.clearInterval();
-    u._e(err);
+    const u = this.out
+    if (!u) { return }
+
+    this.clearTimeout()
+    u._e(err)
   }
 
   public _c() {
     const u = this.out
     if (!u) { return }
-    this.clearInterval()
+
+    this.clearTimeout()
     u._c()
   }
 }
@@ -119,5 +103,5 @@ class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
 export default function timeSpread(period$: Stream<number>): <T>(ins: Stream<T>) => Stream<Array<T>> {
   return function timeSpreadOperator<T>(ins: Stream<T>) {
     return new Stream<Array<T>>(new TimeSpreadOperator(period$, ins))
-  };
+  }
 }
