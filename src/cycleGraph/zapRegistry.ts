@@ -1,5 +1,5 @@
 import xs, { Stream, Listener } from 'xstream'
-import { each, map }  from 'lodash'
+import { each }                 from 'lodash'
 
 export interface Record {
   id: string

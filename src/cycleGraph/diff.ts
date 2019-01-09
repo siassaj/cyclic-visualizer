@@ -1,4 +1,4 @@
-import Graph, { Node, Edge } from './graph'
+import Graph, { Node, Edge } from './main'
 import {
   keys, filter, map, includes, flatten }
 from 'lodash'

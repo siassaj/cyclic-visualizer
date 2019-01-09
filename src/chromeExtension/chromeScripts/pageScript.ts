@@ -1,8 +1,8 @@
-import makeMessagingDriver           from 'chromeExtension/pageApp/messagingDriver'
-import makeAppSinksDriver, { Sinks } from 'chromeExtension/pageApp/appSinksDriver'
-import makeAppSourcesDriver, { Sources } from 'chromeExtension/pageApp/appSourcesDriver'
-import { run }                       from '@cycle/run'
-import main                          from 'chromeExtension/pageApp/main'
+import makeMessagingDriver               from 'pageApp/messagingDriver'
+import makeAppSinksDriver, { Sinks }     from 'pageApp/appSinksDriver'
+import makeAppSourcesDriver, { Sources } from 'pageApp/appSourcesDriver'
+import { run }                           from '@cycle/run'
+import main                              from 'pageApp/main'
 
 const cycleJs = (<any>window)["Cyclejs"]
 const CycleSources = (<any>window)["CycleSources"]

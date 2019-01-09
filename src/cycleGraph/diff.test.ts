@@ -1,7 +1,7 @@
 import xs, { Stream }             from 'xstream'
-import diffGraphs                 from './diffGraphs'
-import Graph                      from './graph'
-import { buildGraph }             from './buildGraph'
+import diffGraphs                 from './diff'
+import Graph                      from './main'
+import { buildGraph }             from './build'
 import {
   each,
   map,

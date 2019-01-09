@@ -4,7 +4,7 @@ import dropRepeats                                from 'xstream/extra/dropRepeat
 import { DOMSource }                              from '@cycle/dom'
 import { StateSource }                            from '@cycle/state'
 import { each, filter, map, isEmpty }             from 'lodash'
-import { EdgePatchOperation, NodePatchOperation } from 'diffGraphs'
+import { EdgePatchOperation, NodePatchOperation } from 'cycleGraph/diff'
 import { Request, MutationRequest }               from '../cytoscapeDriver'
 import { State }                                  from '../main'
 import {

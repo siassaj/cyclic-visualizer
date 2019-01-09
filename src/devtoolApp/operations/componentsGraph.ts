@@ -7,7 +7,7 @@ import { each, filter, map, isEmpty } from 'lodash'
 import {
   NodePatchOperation,
   EdgePatchOperation
-}                                     from 'diffGraphs'
+}                                     from 'cycleGraph/diff'
 import { Request, MutationRequest }   from '../cytoscapeDriver'
 import { State }                      from '../main'
 import {

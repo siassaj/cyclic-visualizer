@@ -5,7 +5,7 @@ import Graph, {
   VisualizedStream,
   ParentHierarchy,
   Parent
-} from './graph'
+} from './main'
 
 interface GOperator<T = any, R = any> extends Operator<Stream<T>, R> {
   inner?: Stream<T>,

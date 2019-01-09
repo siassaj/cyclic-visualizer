@@ -1,18 +1,20 @@
 import xs, { Stream }                                      from 'xstream'
 import dropUntil                                           from 'xstream/extra/dropUntil'
+import timeSpread                                          from '../xstream-contrib/timeSpread'
 import { Sinks as AppSinks,   Message as AppSinksMessage } from './appSinksDriver'
 import { Sources as AppSources, }                          from './appSourcesDriver'
-import { OutboundMessage,
-         InboundMessage,
-         PatchMessage,
-         StateMessage,
-         ZapMessage,
-         SetZapSpeedMessage
-       }    from './messagingDriver'
-import { buildGraph }                                      from 'buildGraph'
-import diff                                                from 'diffGraphs'
-import Graph                                               from 'graph'
-import timeSpread                                          from 'timeSpread'
+import {
+  OutboundMessage,
+  InboundMessage,
+  PatchMessage,
+  StateMessage,
+  ZapMessage,
+  SetZapSpeedMessage
+} from './messagingDriver'
+import { buildGraph }                                      from 'cycleGraph/build'
+import diff                                                from 'cycleGraph/diff'
+import Graph                                               from 'cycleGraph/main'
+
 
 type Sources = {
   messages:   Stream<InboundMessage>;

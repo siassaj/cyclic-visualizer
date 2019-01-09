@@ -1,7 +1,7 @@
 import { Stream, Operator }    from 'xstream'
 import { max, map, nth, last } from 'lodash'
 import objectId                from './objectId'
-import ZapRegistry, { Zap }    from './graph/zapRegistry'
+import ZapRegistry, { Zap }    from './zapRegistry'
 
 type CycleSource = { type: string }
 type CycleSink   = { type: string }

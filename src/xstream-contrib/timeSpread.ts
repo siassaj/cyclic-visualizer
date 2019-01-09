@@ -1,4 +1,4 @@
-import xs, { Operator, Stream, Subscription } from 'xstream'
+import { Operator, Stream, Subscription } from 'xstream'
 
 class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
   private periodSubscription: Subscription | undefined

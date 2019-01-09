@@ -1,6 +1,6 @@
 import xs, { Stream }             from 'xstream'
-import Graph                      from './graph'
-import { buildGraph }             from './buildGraph'
+import Graph                      from './main'
+import { buildGraph }             from './build'
 import {
   each,
   map,
