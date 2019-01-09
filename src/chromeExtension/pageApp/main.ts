@@ -53,7 +53,7 @@ export default function main(sources: Sources): Sinks {
   const zap$ = graph$.map(graph => graph.getZaps()).flatten().
     map<ZapMessage>(zap => ({ target: "panel", action: "zap", payload: { id: zap.id.toString(), depth: zap.depth, zapDataId: zap.zapDataId } }))
 
-  const timeSpreadZap$ = zap$.compose(timeSpread(zapSpeed$)).map((zapAry: Array<ZapMessage>) => xs.fromArray(zapAry)).flatten().debug("Sending Zaps")
+  const timeSpreadZap$ = zap$.compose(timeSpread(zapSpeed$)).map((zapAry: Array<ZapMessage>) => xs.fromArray(zapAry)).flatten()
 
   return {
     messages: xs.merge(patchGraph$, updateState$, timeSpreadZap$),

@@ -145,6 +145,7 @@ function handleRequest(req: NamespacedRequest): cytoscape.Core | undefined {
     graph = getGraph(namespace, category)
 
     if (graph) { operations[action](graph, data) }
+
   }
 
   return graph

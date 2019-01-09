@@ -6,7 +6,6 @@ cytoscape.use(dagre)
 function renderCytoscape(window: Window) {
   // const nodes = map(graph._nodes, (node: any) => ({data: { id: node.id, label: node.label}}))
   // const edges = map(graph._edgeObjs, (edge, _) => ({data: { id: `${edge.v}>${edge.w}`, source: edge.v, target: edge.w }}))
-  console.log("RENDERING")
   const element = <HTMLElement>window.document.querySelector('.Graph')
 
   const config = <cytoscape.CytoscapeOptions>{
@@ -73,9 +72,7 @@ function renderCytoscape(window: Window) {
     }],
   }
 
-  console.log("config", config)
-
-  const cy = cytoscape(config)
+  cytoscape(config)
 }
 
 renderCytoscape(window)

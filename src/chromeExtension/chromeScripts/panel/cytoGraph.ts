@@ -158,7 +158,7 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
       const additionalNodes = map(filter(message.payload, (op => op.op == "add" && op.type == "node" && op.element.type != "parent")), (op) => {
         const node = (<NodePatchOperation>op).element
 
-        return { group: "nodes", data: { id: node.id, parent: node.parent, label: node.label } } as cytoscape.ElementDefinition
+        return { group: "nodes", data: { id: node.id, _parent: node.parent, parent: node.parent, label: node.label } } as cytoscape.ElementDefinition
       })
 
       const additionalEdges = map(filter(message.payload, (patch => patch.op == "add" && patch.type == "edge" && patch.element.type != "parent")), (op) => {

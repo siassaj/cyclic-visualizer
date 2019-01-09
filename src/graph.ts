@@ -1,10 +1,25 @@
-import { Stream, Operator } from 'xstream'
-import { max, map }         from 'lodash'
-import objectId             from './objectId'
-import ZapRegistry, { Zap } from './graph/zapRegistry'
+import { Stream, Operator }    from 'xstream'
+import { max, map, nth, last } from 'lodash'
+import objectId                from './objectId'
+import ZapRegistry, { Zap }    from './graph/zapRegistry'
 
 type CycleSource = { type: string }
 type CycleSink   = { type: string }
+
+export interface VisualizeConfig {
+  sinkKey: string | undefined
+  scopeName: string,
+  scopeId: string
+}
+
+export interface Parent {
+  name: string
+  id: string
+}
+
+export type ParentHierarchy = Array<Parent>
+
+export type VisualizedStream = Stream<any> & { _CyclicVisualizer: VisualizeConfig | undefined, _isCycleSource: string | undefined }
 
 export type Section = {
   type: "ins" | "insArr" | "inner"
@@ -12,8 +27,7 @@ export type Section = {
   breadth: number
   isFinal: boolean
   isInitial: boolean
-  visualizeScope: string | undefined
-  predVisualizeScope: string | undefined
+  parentHierarchy: ParentHierarchy
   source: CycleSource | GOperator
   sink: CycleSink | GOperator
   stream: Stream<any>
@@ -49,12 +63,6 @@ export type Edge = {
   type: "ins" | "insArr" | "inner" | "parent" | undefined
 }
 
-let cycleSources: { [k: string]: object } = {}
-
-function isKnownCycleSource(source: CycleSource | GOperator): boolean {
-  return cycleSources[<string>source.type] ? true : false
-}
-
 // Fetches object ids for the source, stream & sink.
 function registerObjectIds(section: Section): SectionGraphConfig {
   const source  = section.source
@@ -87,25 +95,38 @@ function registerObjectIds(section: Section): SectionGraphConfig {
   }
 }
 
+// memory leak
+let parentMap = new Map<Parent['id'], Parent>()
+
+function getParentId(hierarchy: ParentHierarchy): string | undefined {
+  const parent = last(hierarchy)
+  return parent ? parent.id : undefined
+}
+
 function registerPossibleParent(graph: Graph, section: Section): void {
-  if (!section.visualizeScope) {
-    return
+  const sectionParent: Parent = last(section.parentHierarchy) as Parent
+
+  if (!sectionParent) { return }
+  if (!parentMap.has(sectionParent.id)) {
+    parentMap.set(sectionParent.id, sectionParent)
   }
 
   const parent: Node = {
-    id:    section.visualizeScope,
-    label: section.visualizeScope,
-    parent: section.predVisualizeScope,
+    id:    sectionParent.id,
+    label: sectionParent.name,
     type:  'parent'
   }
 
   graph.setNode(parent)
+  graph.setParent(parent)
 
-  if (section.predVisualizeScope) {
+  const sectionParentParent: Parent | undefined = nth(section.parentHierarchy, -2)
+
+  if (sectionParentParent) {
     const edge: Edge = {
-      id: `${section.predVisualizeScope}.${section.visualizeScope}`,
-      sourceId: section.predVisualizeScope,
-      targetId: section.visualizeScope,
+      id: `${sectionParentParent.id}.${sectionParent.id}`,
+      sourceId: sectionParentParent.id,
+      targetId: sectionParent.id,
       label: "",
       type: "parent"
     }
@@ -114,13 +135,15 @@ function registerPossibleParent(graph: Graph, section: Section): void {
   }
 }
 
+
+
 function registerGraphElements(graph: Graph, section: Section, config: SectionGraphConfig): void {
 
   const sourceNode: Node = {
     id:    config.sourceId.toString(),
     type:  section.isInitial ? "cycleSource" : "operator",
     label: section.isInitial ? config.streamLabel : config.sourceLabel,
-    parent: section.isInitial ? "cycleSources" : section.visualizeScope,
+    parent: section.isInitial ? "cycleSources" : getParentId(section.parentHierarchy),
     width: 100,
     height: 100
   }
@@ -130,7 +153,7 @@ function registerGraphElements(graph: Graph, section: Section, config: SectionGr
   //   type:  'stream',
   //   linkage: section.type,
   //   label: config.streamLabel,
-  //   parent: section.visualizeScope,
+  //   parent: getParentId(section.parentHierarchy),
   //   width: 100,
   //   height: 100
   // }
@@ -139,7 +162,7 @@ function registerGraphElements(graph: Graph, section: Section, config: SectionGr
     id:    config.sinkId.toString(),
     type:  section.isFinal ? "cycleSink" : "operator",
     label: config.sinkLabel,
-    parent: section.isFinal ? "cycleSinks" : section.visualizeScope,
+    parent: section.isFinal ? "cycleSinks" : getParentId(section.parentHierarchy),
     width: 100,
     height: 100
   }
@@ -170,6 +193,7 @@ function registerZapRecord(graph: Graph, section: Section, config: SectionGraphC
 export default class Graph {
   private _zapRegistry: ZapRegistry
   private _sections: Array<Section>;
+  private _parents: { [id: string]: Node };
 
   public nodes: { [id: string]: Node }
   public edges: { [id: string]: Edge }
@@ -181,6 +205,7 @@ export default class Graph {
     this._sections = []
     this.nodes = {}
     this.edges = {}
+    this._parents = {}
   }
 
   public register(section: Section): void {
@@ -204,6 +229,10 @@ export default class Graph {
 
   public setEdge(edge: Edge): void {
     if (!this.edges[edge.id]) { this.edges[edge.id] = edge }
+  }
+
+  public setParent(node: Node): void {
+    if (!this._parents[node.id]) { this._parents[node.id] = node }
   }
 
   public rebaseDepths(): void {

@@ -18,7 +18,6 @@ function setUp(): void {
 
   if (cycleJs) {
     (<any>window)['originalSinks'] = sinks
-    // (<any>window)['originalSinks'] = sinks
 
     run(main, {
       appSources: makeAppSourcesDriver(sources),

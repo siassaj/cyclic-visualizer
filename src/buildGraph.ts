@@ -1,6 +1,11 @@
 import { Stream, Operator } from 'xstream'
 import { flowRight, flatten, compact, isEmpty, each, map, keys } from 'lodash'
-import Graph, { Section } from './graph'
+import Graph, {
+  Section,
+  VisualizedStream,
+  ParentHierarchy,
+  Parent
+} from './graph'
 
 interface GOperator<T = any, R = any> extends Operator<Stream<T>, R> {
   inner?: Stream<T>,
@@ -11,22 +16,12 @@ type Sinks = { [k: string]: Stream<any> }
 
 type Stack = Section[]
 
-type DevtoolStream = Stream<any> & { _isCycleSource?: string, _visualizeScope?: string }
+function buildInsSection(sink: GOperator, previousHierarchy: ParentHierarchy, currentDepth: number, currentBreadth: number): undefined | Section {
+  if (!sink.ins) { return }
 
-type VisualizeScope = string | undefined
-
-function getVisualizeScope(stream: Stream<any>): VisualizeScope {
-  return (<DevtoolStream>stream)._visualizeScope
-}
-
-function buildInsSection(operator: GOperator, currentVisualizeScope: VisualizeScope, currentDepth: number, currentBreadth: number): undefined | Section {
-  if (!operator.ins) { return }
-
-  const source = operator.ins._prod
-  const stream = <DevtoolStream>operator.ins
-  const visualizeScope = getVisualizeScope(stream) || currentVisualizeScope
-  const predVisualizeScope = visualizeScope && currentVisualizeScope && visualizeScope != currentVisualizeScope ? currentVisualizeScope : undefined
-
+  const source = sink.ins._prod
+  const stream = sink.ins as VisualizedStream
+  const newHierarchy = getParentHierarchy(stream, previousHierarchy)
   const isCycleSource = stream._isCycleSource ? true : false
   const isInitial = isCycleSource || isEmpty(source)
 
@@ -36,20 +31,17 @@ function buildInsSection(operator: GOperator, currentVisualizeScope: VisualizeSc
     breadth:            currentBreadth,
     isInitial:          isInitial,
     isFinal:            false,
-    visualizeScope:     visualizeScope,
-    predVisualizeScope: predVisualizeScope,
+    parentHierarchy:    newHierarchy,
     source:             isInitial ? { type: stream._isCycleSource || ""} : <GOperator>source,
     stream:             stream,
-    sink:               operator,
+    sink:               sink,
   }
 }
 
-function buildInsArrSections(operator: GOperator, currentVisualizeScope: VisualizeScope, currentDepth: number, currentBreadth: number): Array<Section> {
-  return map<DevtoolStream, Section>(operator.insArr, (stream: DevtoolStream, idx: number): Section => {
+function buildInsArrSections(sink: GOperator, previousHierarchy: ParentHierarchy, currentDepth: number, currentBreadth: number): Array<Section> {
+  return map<VisualizedStream, Section>(sink.insArr as Array<VisualizedStream>, (stream: VisualizedStream, idx: number): Section => {
     const source = stream._prod
-    const visualizeScope = getVisualizeScope(stream) || currentVisualizeScope
-    const predVisualizeScope = visualizeScope && currentVisualizeScope && visualizeScope != currentVisualizeScope ? currentVisualizeScope : undefined
-
+    const newHierarchy = getParentHierarchy(stream, previousHierarchy)
     const isCycleSource = stream._isCycleSource ? true : false
     const isInitial = isCycleSource || isEmpty(source)
 
@@ -59,25 +51,21 @@ function buildInsArrSections(operator: GOperator, currentVisualizeScope: Visuali
       breadth:            currentBreadth + idx,
       isInitial:          isInitial,
       isFinal:            false,
-      visualizeScope:     visualizeScope,
-      predVisualizeScope: predVisualizeScope,
+      parentHierarchy:    newHierarchy,
       source:             isInitial ? { type: stream._isCycleSource || ""} : <GOperator>source,
       stream:             stream,
-      sink:               operator
+      sink:               sink
     }
   })
 }
 
-function buildInnerSection(operator: GOperator, currentVisualizeScope: VisualizeScope, currentDepth: number, currentBreadth: number): Section | undefined {
-  if (isEmpty(operator.inner)) {
+function buildInnerSection(sink: GOperator, previousHierarchy: ParentHierarchy, currentDepth: number, currentBreadth: number): Section | undefined {
+  if (isEmpty(sink.inner)) {
     return undefined
   } else {
-    const stream             = <DevtoolStream>operator.inner
+    const stream             = <VisualizedStream>sink.inner
     const source             = stream._prod
-    const visualizeScope     = getVisualizeScope(stream) || currentVisualizeScope
-    const predVisualizeScope = visualizeScope && currentVisualizeScope &&
-      (visualizeScope != currentVisualizeScope ? currentVisualizeScope : undefined)
-
+    const newHierarchy       = getParentHierarchy(stream, previousHierarchy)
     const isCycleSource      = stream._isCycleSource ? true : false
     const isInitial          = isCycleSource || isEmpty(source)
 
@@ -87,30 +75,49 @@ function buildInnerSection(operator: GOperator, currentVisualizeScope: Visualize
       breadth:            currentBreadth + 1,
       isInitial:          isInitial,
       isFinal:            false,
-      visualizeScope:     visualizeScope,
-      predVisualizeScope: predVisualizeScope,
+      parentHierarchy:    newHierarchy,
       source:             isInitial ? { type: stream._isCycleSource || ""} : <GOperator>source,
       stream:             stream,
-      sink:               operator
+      sink:               sink
     }
   }
 }
 
-function buildSections(operator: GOperator, currentVisualizeScope: VisualizeScope, currentDepth: number, currentBreadth: number): Array<Section> {
-  const insSection: Section | undefined   = buildInsSection(operator, currentVisualizeScope, currentDepth, currentBreadth)
-  const insArrSections: Array<Section>    = buildInsArrSections(operator, currentVisualizeScope, currentDepth, currentBreadth)
-  const innerSection: Section | undefined = buildInnerSection(operator, currentVisualizeScope, currentDepth, currentBreadth)
+function buildSections(sink: GOperator, hierarchy: ParentHierarchy, currentDepth: number, currentBreadth: number): Array<Section> {
+  const insSection: Section | undefined   = buildInsSection(sink, hierarchy, currentDepth, currentBreadth)
+  const insArrSections: Array<Section>    = buildInsArrSections(sink, hierarchy, currentDepth, currentBreadth)
+  const innerSection: Section | undefined = buildInnerSection(sink, hierarchy, currentDepth, currentBreadth)
 
   const func = flowRight<Section[], (Section | undefined)[]>(compact, flatten)
 
   return func([insSection, insArrSections, innerSection])
 }
 
-function buildFinalSection(stream: DevtoolStream, key: string, breadth: number): Section {
+function getParentHierarchy(stream: VisualizedStream, previousHierarchy: ParentHierarchy): ParentHierarchy {
+  const config = stream._CyclicVisualizer
+  if (config) {
+    return flatten([previousHierarchy, { id: config.scopeId, name: config.scopeName }]) as [Parent, ...Parent[]]
+  } else {
+    return previousHierarchy
+  }
+}
+
+function getParent(stream: VisualizedStream, previousParent: Parent | undefined): Parent | undefined {
+  const config = stream._CyclicVisualizer
+  if (config) {
+    return { id: config.scopeId, name: config.scopeName }
+  } else {
+    return previousParent
+  }
+}
+
+function buildFinalSection(stream: VisualizedStream, key: string, breadth: number): Section {
   const source = stream._prod
 
   const isCycleSource = stream._isCycleSource ? true : false
   const isInitial = isCycleSource || isEmpty(source)
+
+  const parent: Parent | undefined = getParent(stream, undefined)
 
   return {
     type: "ins",
@@ -118,8 +125,7 @@ function buildFinalSection(stream: DevtoolStream, key: string, breadth: number):
     depth: 0,
     breadth: breadth,
     isFinal: true,
-    visualizeScope: getVisualizeScope(stream),
-    predVisualizeScope: undefined,
+    parentHierarchy: compact([parent]),
     source: isInitial ? { type: stream._isCycleSource || "" } : <GOperator>source,
     stream: stream,
     sink: { type: key }
@@ -129,10 +135,8 @@ function buildFinalSection(stream: DevtoolStream, key: string, breadth: number):
 function crawlSection(section: Section, stack: Stack, graph: Graph) {
   graph.register(section)
 
-  const currentVisualizeScope: VisualizeScope = section.visualizeScope
-
   if (!section.isInitial) {
-    const sections = buildSections(<GOperator>section.source, currentVisualizeScope, section.depth, section.breadth)
+    const sections = buildSections(<GOperator>section.source, section.parentHierarchy, section.depth, section.breadth)
 
     each(sections, (section: Section) => stack.push(section));
   }
@@ -145,7 +149,11 @@ export type Graph = Graph
 export function buildGraph(graph: Graph, sinks: Sinks): Graph {
   const stack: Stack = []
 
-  each(sinks, (stream: Stream<any>, key: string) => stack.push(buildFinalSection(stream, key, keys(sinks).indexOf(key))))
+  each(sinks, (stream: Stream<any>, key: string) => {
+    const section: Section = buildFinalSection(stream as VisualizedStream, key, keys(sinks).indexOf(key))
+
+    stack.push(section)
+  })
 
     while(stack.length > 0) {
       const section = stack.pop()

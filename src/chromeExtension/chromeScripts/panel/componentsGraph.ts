@@ -37,6 +37,7 @@ const layout = {
   grid:                        true,
   nodeDimensionsIncludeLabels: true,
   spacingFactor:               1,
+  animate:                     true,
   fit:                         true
 }
 

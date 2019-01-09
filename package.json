@@ -38,6 +38,7 @@
     "@types/cytoscape": "^3.2.9",
     "@types/dagre": "^0.7.40",
     "@types/lodash": "^4.14.119",
+    "@types/uuid": "^3.4.4",
     "browserify": "^16.2.3",
     "csx": "^9.0.0",
     "cytoscape": "^3.3.1",
@@ -51,6 +52,7 @@
     "klay": "^2.4.0",
     "lodash": "^4.17.11",
     "typestyle": "^2.0.1",
+    "uuid": "^3.3.2",
     "webworker-threads": "^0.7.17",
     "xstream": "^11.7.0"
   },
