@@ -1,20 +1,29 @@
-import { Request }                                from './cytoscapeDriver'
+import xs, { Stream }                             from 'xstream'
+import sampleCombine                              from 'xstream/extra/sampleCombine'
+import dropRepeats                                from 'xstream/extra/dropRepeats'
+import { DOMSource }                              from '@cycle/dom'
+import { StateSource }                            from '@cycle/state'
 import { each, filter, map, isEmpty }             from 'lodash'
-import { PatchGraphMessage, ZapMessage }          from './messagingDriver'
 import { EdgePatchOperation, NodePatchOperation } from 'diffGraphs'
+import { Request, MutationRequest }               from '../cytoscapeDriver'
+import { State }                                  from '../main'
+import {
+  Source as CytoSource,
+  Request as CytoRequest
+}                                                 from '../cytoscapeDriver'
+import {
+  Source as MessagingSource,
+  PatchGraphMessage,
+  ZapMessage,
+}                                                 from '../messagingDriver'
 
-export interface CytoConfig {
-  layout: any
-  style:  any
-}
-
-export interface Zap {
+interface Zap {
   id:        string,
   depth:     number,
   zapDataId: number
 }
 
-const layout = {
+const layout: cytoscape.LayoutOptions & { klay: { [k: string]: any } } = {
   name: "klay",
   fit:   false,
   nodeDimensionsIncludeLabels: true,
@@ -28,26 +37,15 @@ const layout = {
     inLayerSpacingFactor:        1.5
   }
 }
-// const layout = {
-//   name: 'dagre',
-//   ranker: 'network-simplex',
-//   fit: false,
-//   animate: false
-// }
 
-// const layout = {
-//   name: "breadthfirst",
-//   directed: true,
-// }
-
-export function initCytoConfig() {
+function initCytoConfig(): cytoscape.CytoscapeOptions {
   return {
     boxSelectionEnabled: true,
     autounselectify: false,
     elements: {
       nodes: [
-        { id: "cycleSources", type: "parent", data: { id: "cycleSources", label: "Cycle Sources"}},
-        { id: "cycleSinks",   type: "parent", data: { id: "cycleSinks",   label: "Cycle Sinks"}}
+        { data: { id: "cycleSources", label: "Cycle Sources", type: "parent"}},
+        { data: { id: "cycleSinks",   label: "Cycle Sinks",   type: "parent"}}
       ],
       edges: []
     },
@@ -136,7 +134,7 @@ export function initCytoConfig() {
   }
 }
 
-export function buildCytoInit(elem: HTMLElement, cytoConfig: CytoConfig): Request {
+function buildCytoInit(elem: HTMLElement, cytoConfig: cytoscape.CytoscapeOptions): Request {
   return {
     category: 'graph',
     action: 'init',
@@ -147,7 +145,7 @@ export function buildCytoInit(elem: HTMLElement, cytoConfig: CytoConfig): Reques
   }
 }
 
-export function patchGraph([message, _]: [PatchGraphMessage, any]) {
+function patchGraph([message, _]: [PatchGraphMessage, any]): MutationRequest {
   return {
     category: 'graph',
     action: 'shamefullyMutate',
@@ -182,27 +180,7 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
   }
 }
 
-export function restyleGraph(style: any) {
-  return {
-    category: 'graph',
-    action: 'shamefullyMutate',
-    data: (graph: cytoscape.Core): void => {
-      graph.style(style)
-    }
-  }
-}
-
-export function relayoutGraph(layout: any) {
-  return {
-    category: 'graph',
-    action: 'shamefullyMutate',
-    data: (graph: cytoscape.Core): void => {
-      graph.layout(layout).run()
-    }
-  }
-}
-
-export function highlightChain(node: cytoscape.NodeSingular) {
+function highlightChain(node: cytoscape.NodeSingular): MutationRequest {
   return {
     category: 'graph',
     action: 'shamefullyMutate',
@@ -224,7 +202,7 @@ export function highlightChain(node: cytoscape.NodeSingular) {
 
 const flashClassRegistry: Map<string, { [k: string]: NodeJS.Timeout }> = new Map()
 
-export function flashClass(elems: cytoscape.CollectionReturnValue, klass: string, duration: number): void {
+function flashClass(elems: cytoscape.CollectionReturnValue, klass: string, duration: number): void {
   each(elems, elem => {
     const id: string = elem.id()
 
@@ -240,7 +218,7 @@ export function flashClass(elems: cytoscape.CollectionReturnValue, klass: string
 }
 
 
-export function zapGraph(zapMessage: ZapMessage) {
+function zapGraph(zapMessage: ZapMessage): MutationRequest {
   return {
     category: 'graph',
     action: 'shamefullyMutate',
@@ -259,12 +237,38 @@ export function zapGraph(zapMessage: ZapMessage) {
   }
 }
 
-export function resize() {
+function resize(): MutationRequest {
   return {
     category: 'graph',
     action: 'shamefullyMutate',
     data: (graph: cytoscape.Core): void => {
       graph.resize()
     }
+  }
+}
+
+export interface Sources {
+  state: StateSource<State>;
+  DOM:   DOMSource
+  cyto:  CytoSource
+  messages: MessagingSource
+}
+
+export interface Sinks {
+  cyto: Stream<CytoRequest>
+}
+
+export default function main(sources: Sources): Sinks {
+  const cytoElement$ = sources.DOM.select('.graph').element().take(1) as Stream<Element>;
+  const cytoGraph$   = sources.cyto.with('graph').map(e => e.graph).take(1)
+  const initCytoGraph$ = cytoElement$.map((elem: Element) => buildCytoInit(elem as HTMLElement, initCytoConfig()))
+  const patchGraph$    = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(cytoGraph$)).map(patchGraph)
+  const traceEdges$ = sources.cyto.with('graph').map(delegate => delegate.on('tap', 'node') as Stream<cytoscape.EventObject>).flatten().filter(e => (e.target && e.target.isNode && e.target.isNode())).map((e: any) => highlightChain(e.target as cytoscape.NodeSingular))
+  const zap$           = (sources.messages.filter(m => m.action == "zap") as Stream<ZapMessage>).map(zapGraph)
+  const graphVisible$ = (sources.DOM.select('.graph').element() as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).compose(dropRepeats()).filter(b => b)
+  const resizeGraph$ = graphVisible$.map(resize)
+
+  return {
+    cyto: xs.merge(initCytoGraph$, patchGraph$, traceEdges$, zap$, resizeGraph$)
   }
 }

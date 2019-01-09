@@ -31,6 +31,11 @@ export interface Request {
   data: any
 }
 
+export interface MutationRequest extends Request {
+  action: 'shamefullyMutate'
+  data: (graph: cytoscape.Core) => void
+}
+
 export interface NamespacedRequest extends Request {
   _namespace: Array<string>;
 }

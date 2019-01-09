@@ -1,37 +1,25 @@
-import { Request }                    from './cytoscapeDriver'
+import xs, { Stream }                 from 'xstream'
+import sampleCombine                  from 'xstream/extra/sampleCombine'
+import dropRepeats                    from 'xstream/extra/dropRepeats'
+import { DOMSource }                  from '@cycle/dom'
+import { StateSource }                from '@cycle/state'
 import { each, filter, map, isEmpty } from 'lodash'
-import { PatchGraphMessage  }         from './messagingDriver'
 import {
   NodePatchOperation,
   EdgePatchOperation
 }                                     from 'diffGraphs'
+import { Request, MutationRequest }   from '../cytoscapeDriver'
+import { State }                      from '../main'
+import {
+  Source as CytoSource,
+  Request as CytoRequest
+}                                     from '../cytoscapeDriver'
+import {
+  Source as MessagingSource,
+  PatchGraphMessage,
+}                                     from '../messagingDriver'
 
-export interface CytoConfig {
-  layout: any
-  style:  any
-}
-
-// const layout = {
-//   name: "klay",
-//   fit:   false,
-//   nodeDimensionsIncludeLabels: true,
-//   klay: {
-//     direction:                   "RIGHT",
-//     fixedAlignment:              "LEFTDOWN",
-//     mergeEdges:                  true,
-//     feedbackEdges:               true,
-//     separateConnectedComponents: true,
-//     layoutHierarchy:             true
-//   }
-// }
-// const layout = {
-//   name: 'dagre',
-//   ranker: 'network-simplex',
-//   fit: false,
-//   animate: false
-// }
-
-const layout = {
+const layout: cytoscape.LayoutOptions & { grid: boolean } = {
   name:                        "breadthfirst",
   directed:                    true,
   grid:                        true,
@@ -41,7 +29,7 @@ const layout = {
   fit:                         true
 }
 
-export function initCytoConfig() {
+function initCytoConfig(): cytoscape.CytoscapeOptions {
   return {
     boxSelectionEnabled: true,
     autounselectify: false,
@@ -124,7 +112,7 @@ export function initCytoConfig() {
   }
 }
 
-export function buildCytoInit(elem: HTMLElement, cytoConfig: CytoConfig): Request {
+function buildCytoInit(elem: HTMLElement, cytoConfig: cytoscape.CytoscapeOptions): Request {
   return {
     category: 'components',
     action: 'init',
@@ -135,7 +123,7 @@ export function buildCytoInit(elem: HTMLElement, cytoConfig: CytoConfig): Reques
   }
 }
 
-export function patchGraph([message, _]: [PatchGraphMessage, any]) {
+function patchGraph([message, _]: [PatchGraphMessage, any]): MutationRequest {
   return {
     category: 'components',
     action: 'shamefullyMutate',
@@ -172,12 +160,36 @@ export function patchGraph([message, _]: [PatchGraphMessage, any]) {
 }
 
 
-export function resize() {
+function resize(): MutationRequest {
   return {
     category: 'components',
     action: 'shamefullyMutate',
     data: (graph: cytoscape.Core): void => {
       graph.resize()
     }
+  }
+}
+
+export interface Sources {
+  state: StateSource<State>;
+  DOM:   DOMSource
+  cyto:  CytoSource
+  messages: MessagingSource
+}
+
+export interface Sinks {
+  cyto: Stream<CytoRequest>
+}
+
+export default function main(sources: Sources): Sinks {
+  const componentsElement$    = sources.DOM.select('.components').element().take(1) as Stream<Element>;
+  const componentsGraph$      = sources.cyto.with('components').map(e => e.graph).take(1)
+  const initComponentsGraph$  = componentsElement$.map((elem: Element) => buildCytoInit(elem as HTMLElement, initCytoConfig()))
+  const patchComponentsGraph$ = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(componentsGraph$)).map(patchGraph)
+  const componentsVisible$ = (sources.DOM.select('.components').element() as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).compose(dropRepeats()).filter(b => b)
+  const resizeComponents$ = componentsVisible$.map(resize)
+
+  return {
+    cyto: xs.merge(initComponentsGraph$, patchComponentsGraph$, resizeComponents$)
   }
 }
