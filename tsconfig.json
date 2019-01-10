@@ -23,6 +23,7 @@
     "src/chromeExtension/chromeScripts/pageScript.ts",
     "src/chromeExtension/chromeScripts/devtoolsPage.ts",
     "src/chromeExtension/chromeScripts/panel.ts",
+    "src/visualize.ts",
     "src/testApp.ts",
   ],
   "exclude": [

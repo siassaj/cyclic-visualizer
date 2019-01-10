@@ -16,7 +16,8 @@
     "distChromePageScript": "NODE_PATH=$NODE_PATH:build node_modules/.bin/browserify build/chromeExtension/chromeScripts/pageScript.js -s pageScript --outfile dist/chromeExtension/chromeScripts/pageScript.js",
     "distTestApp": "NODE_PATH=$NODE_PATH:build node_modules/.bin/browserify build/testApp.js -s ptestApp --outfile dist/testApp.js",
     "distChrome": "npm run distChromeBackground && npm run distChromeDevtoolsPage && npm run distChromeContentScript && npm run distChromePageScript && npm run distChromePanel",
-    "build": "npm run cleanDist && npm run copyAssets && npm run lint && npm run compile && npm run distChrome && npm run distTestApp"
+    "copyVisualize": "cp build/visualize.js dist/visualize.js",
+    "build": "npm run cleanDist && npm run copyAssets && npm run lint && npm run compile && npm run distChrome && npm run distTestApp && npm run copyVisualize"
   },
   "repository": {
     "type": "git",
