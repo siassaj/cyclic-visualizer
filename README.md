@@ -46,7 +46,7 @@ function mountComponent(component, scope, sources) {
 
 function mountOperation(operation, scope, sources) {
   const sinks = component(sources)
-  visualize(sinks, { scope: scope, prefix: "Component" })
+  visualize(sinks, { scope: scope, prefix: "Operation" })
   return sinks
 }
 
@@ -86,4 +86,6 @@ Chrome communication & script injection in chrome is a pain. This is how it work
 1. ```devtool``` script runs & connects to background, sending 'incjectContentScript' instruction
 1. ```contentScript``` is injected into your page & injects ```pageScript```
 1. ```pageScript``` has access to your app's ```window```, tries to search for a cycle app
-1. If a cycle app is found it a message is posted on ```window```, ```contentScript``` picks up the message & posts it to ```background```, ```background``` posts it to ```devtool```, ```devtool``` posts it to ```panel``` window. FINALLY the devtool CycleJS app's driver gets the message. This is how devtoolApp's & pageApp's message drivers work. Have fun.
+1. If a cycle app is found a message is posted on ```window```, ```contentScript``` picks up the message & posts it to ```background```, ```background``` posts it to ```devtool```, ```devtool``` posts it to ```panel``` window. FINALLY the devtool CycleJS app's driver gets the message.
+
+This is how messages are transmitted. Have fun.
