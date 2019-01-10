@@ -315,18 +315,31 @@ export default function main(sources: Sources): Sinks {
   const resizeGraph$   = graphVisible$.map(resize)
   const hideShowNodes$ = sources.state.stream.map(s => s.parents).compose(dropRepeats()).map<MutationRequest>(hideShowNodes)
 
-  const getZapData$    = zapMessage$.compose(sampleCombine(sources.state.stream)).filter(
+  const getZapDataFromZaps$ = zapMessage$.compose(sampleCombine(sources.state.stream)).filter(
     ([zapMessage, state]: [ZapMessage, State]) => includes(state.selectedNodeIds, zapMessage.payload.id)
   ).map<GetZapDataMessage>(([zapMessage, _]: [ZapMessage, State]) => {
     return {
       target: "pageScript",
       action: "getZapData",
       payload: {
-        nodeId: zapMessage.payload.id,
-        zapDataId: zapMessage.payload.zapDataId
+        type: 'zapDataId',
+        id: zapMessage.payload.zapDataId
       }
     }
-  }).debug("Fetching Zap Data")
+  })
+
+  const getZapDataFromSelects$  = selectNode$.map<Stream<GetZapDataMessage>>(e => {
+    const requests = map(e.cy.nodes(':selected'), node => ({
+      target: "pageScript",
+      action: "getZapData",
+      payload: {
+        type: 'nodeId',
+        id: node.id()
+      }
+    } as GetZapDataMessage))
+
+    return xs.fromArray(requests)
+  }).flatten()
 
   const zapDataMessage$ = (sources.messages.filter(m => m.action == "zapData") as Stream<ZapDataMessage>)
 
@@ -334,12 +347,12 @@ export default function main(sources: Sources): Sinks {
     ...prev as State,
     zapData: {
       ...(prev as State).zapData,
-      [message.payload.id]: parse(message.payload.zapData)
+      [message.payload.nodeId]: parse(message.payload.zapData)
     }
   })).debug("Setting DEVTOOL zap data")
 
   return {
-    messages: getZapData$,
+    messages: xs.merge(getZapDataFromZaps$, getZapDataFromSelects$),
     cyto: xs.merge(initCytoGraph$, patchGraph$, traceEdges$, zap$, resizeGraph$, hideShowNodes$),
     state: xs.merge(setSelectedNodes$, setZapData$)
   }

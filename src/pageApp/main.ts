@@ -57,11 +57,20 @@ export default function main(sources: Sources): Sinks {
 
   const getZapData$ = sources.messages.filter(m => m.action == "getZapData").map(m => (m as GetZapDataMessage).payload).debug("Received Order To Fetch Zap Data")
 
-  const dispatchZapData$: Stream<ZapDataMessage> = getZapData$.compose(sampleCombine(graph$)).map<ZapDataMessage>(([zap, graph]: [{nodeId: string, zapDataId: number}, Graph]) => ({
-    target: "panel",
-    action: "zapData",
-    payload: { id: zap.nodeId, zapDataId: zap.zapDataId, zapData: stringify(graph.getZapData(zap.zapDataId)) }
-  })).debug("Dispatching Zap Data")
+  const dispatchZapData$: Stream<ZapDataMessage> = getZapData$.debug("gotZapData").compose(sampleCombine(graph$)).map(([zap, graph]: [{ type: "zapDataId" | "nodeId", id: number | string }, Graph]) => {
+    const data = graph.getZapData(zap.type as "zapDataId" | "nodeId" , zap.id)
+
+    if (data) {
+      const payload = { nodeId: data.nodeId, zapDataId: zap.type == "zapDataId" ? zap.id as number : undefined, zapData: stringify(data) }
+      return {
+        target: "panel",
+        action: "zapData",
+        payload: payload
+      }
+    } else {
+      return undefined
+    }
+  }).filter((m: any) => !!m).debug('dispatch') as Stream<ZapDataMessage>
 
   const zap$ = graph$.map(graph => graph.getZaps()).flatten().
     map<ZapMessage>(zap => ({

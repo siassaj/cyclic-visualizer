@@ -1,7 +1,7 @@
 import { Stream, Operator }             from 'xstream'
 import { max, map, nth, last, isEmpty } from 'lodash'
 import objectId                         from './objectId'
-import ZapRegistry, { Zap }             from './zapRegistry'
+import ZapRegistry, { Zap, ZapData }    from './zapRegistry'
 
 type CycleSource = { type: string }
 type CycleSink   = { type: string }
@@ -253,8 +253,7 @@ export default class Graph {
     return this._zapRegistry.getMappedZapStreams()
   }
 
-  public getZapData(id: number): any {
-    return this._zapRegistry.getZapData(id)
+  public getZapData(type: "zapDataId" | "nodeId" , id: number | string): ZapData | undefined {
+    return this._zapRegistry.getZapData(type, id)
   }
 }
-

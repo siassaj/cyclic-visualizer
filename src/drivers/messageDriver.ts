@@ -28,7 +28,7 @@ export interface ZapMessage extends Message {
 export interface ZapDataMessage extends Message {
   target: "panel",
   action: "zapData",
-  payload: { id: string, zapDataId: number, zapData: any }
+  payload: { nodeId: string, zapDataId?: number, zapData: string }
 }
 
 export interface SetZapSpeedMessage extends Message {
@@ -40,10 +40,7 @@ export interface SetZapSpeedMessage extends Message {
 export interface GetZapDataMessage extends Message{
   target: "pageScript",
   action: "getZapData",
-  payload: {
-    nodeId: string,
-    zapDataId: number
-  }
+  payload: { type: 'zapDataId', id: number } | { type: 'nodeId', id: string }
 }
 
 interface MyListener<T> extends Producer<T> {
