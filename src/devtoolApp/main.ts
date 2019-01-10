@@ -5,30 +5,34 @@ import { StateSource, Reducer } from '@cycle/state'
 import {
   Source as CytoSource,
   Request as CytoRequest
-}                               from './cytoscapeDriver'
+}                               from 'drivers/cytoscapeDriver'
 import {
-  Source as MessagingSource,
-  Request as MessagingRequest,
-}                               from './messagingDriver'
-
+  Source as MessageSource,
+  SetZapSpeedMessage,
+  GetZapDataMessage
+}                               from 'drivers/messageDriver'
 import applicationGraph         from './operations/applicationGraph'
 import componentsGraph          from './operations/componentsGraph'
 import appState                 from './operations/appState'
 import switchPanels             from './operations/switchPanels'
 import zap                      from './operations/zap'
-import view                     from "./view"
+import view                     from './view'
 
 export interface State {
-  appState: any,
-  visiblePanel: "appState" | "components" | "graph",
-  zapSpeed: number
+  appState:        any,
+  visiblePanel:    "appState" | "components" | "graph",
+  zapSpeed:        number,
+  parents:         Array<string>;
+  selectedNodes:   Array<cytoscape.NodeSingular>;
+  selectedNodeIds: Array<string>;
+  zapData:         { [k: string]: number };
 }
 
 interface Sources {
   DOM:      DOMSource;
   time:     TimeSource;
   cyto:     CytoSource;
-  messages: MessagingSource;
+  messages: MessageSource;
   state:    StateSource<State>;
 }
 
@@ -37,7 +41,7 @@ interface Sinks {
   DOM:      Stream<VNode>;
   time:     Stream<any>;
   cyto:     Stream<CytoRequest>;
-  messages: Stream<MessagingRequest>;
+  messages: Stream<SetZapSpeedMessage | GetZapDataMessage>;
 }
 
 export default function main(sources: Sources): Sinks {
@@ -46,23 +50,32 @@ export default function main(sources: Sources): Sinks {
   const appStateSinks         = appState(sources)
   const switchPanelsSinks     = switchPanels(sources)
   const zapSinks              = zap(sources)
-
-  const view$                 = view({parent: sources.state.stream})
-
+  const view$                 = view({ parent: sources.state.stream })
   const cyto$                 = xs.merge(
     applicationGraphSinks.cyto,
     componentsGraphSinks.cyto
   )
-
   const state$                = xs.merge(
+    applicationGraphSinks.state,
+    componentsGraphSinks.state,
     appStateSinks.state,
     switchPanelsSinks.state,
     zapSinks.state
-  ).startWith(() => ({ appState: undefined, cytoConfig: undefined, visiblePanel: "appState", zapSpeed: 20 }))
-
-  const messages$             = zapSinks.messages
-
-  const time$     = xs.empty()
+  ).startWith(() => ({
+    appState:        undefined,
+    cytoConfig:      undefined,
+    visiblePanel:    "appState",
+    zapSpeed:        20,
+    parents:         [],
+    selectedNodes:   [],
+    selectedNodeIds: [],
+    zapData:         {}
+  }))
+  const messages$             = xs.merge(
+    zapSinks.messages,
+    applicationGraphSinks.messages
+  )
+  const time$                 = xs.empty()
 
   return {
     DOM:      view$,

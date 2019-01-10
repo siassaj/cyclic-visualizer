@@ -2,7 +2,7 @@ import xs, { Stream }                from 'xstream'
 import { Reducer }                   from '@cycle/state'
 import { DOMSource }                 from '@cycle/dom'
 import { State }                     from '../main'
-import { Source as MessagingSource } from '../messagingDriver'
+import { Source as MessagingSource } from 'drivers/messageDriver'
 
 export interface Sources {
   DOM: DOMSource

@@ -1,12 +1,14 @@
 import xs, { Stream }                  from 'xstream'
-import { defineDriver, Source as Base, Response$$, FactoryOptions } from 'defineDriver'
+import { defineDriver, Source as Base, Response$$, FactoryOptions } from './defineDriver'
 import * as cytoscape                  from 'cytoscape'
 import * as dagre                      from 'cytoscape-dagre'
 import * as klay                       from 'cytoscape-klay'
+import * as cxtmenu                    from 'cytoscape-cxtmenu'
 import { find }                        from 'lodash'
 
 cytoscape.use(dagre)
 cytoscape.use(klay)
+cytoscape.use(cxtmenu)
 
 const operations = {
   init: (data: cytoscape.CytoscapeOptions): cytoscape.Core => {

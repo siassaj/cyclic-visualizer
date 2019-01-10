@@ -8,7 +8,6 @@ export interface Message {
   action: "fetch"
 }
 
-
 function innerDriver(sinks: Sinks, sink$: Stream<Message>): Stream<Sinks> {
   let sinkListener: any
 

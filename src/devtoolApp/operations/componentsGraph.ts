@@ -2,22 +2,22 @@ import xs, { Stream }                 from 'xstream'
 import sampleCombine                  from 'xstream/extra/sampleCombine'
 import dropRepeats                    from 'xstream/extra/dropRepeats'
 import { DOMSource }                  from '@cycle/dom'
-import { StateSource }                from '@cycle/state'
+import { Reducer, StateSource }       from '@cycle/state'
 import { each, filter, map, isEmpty } from 'lodash'
 import {
   NodePatchOperation,
   EdgePatchOperation
 }                                     from 'cycleGraph/diff'
-import { Request, MutationRequest }   from '../cytoscapeDriver'
+import { Request, MutationRequest }   from 'drivers/cytoscapeDriver'
 import { State }                      from '../main'
 import {
   Source as CytoSource,
   Request as CytoRequest
-}                                     from '../cytoscapeDriver'
+}                                     from 'drivers/cytoscapeDriver'
 import {
   Source as MessagingSource,
   PatchGraphMessage,
-}                                     from '../messagingDriver'
+}                                     from 'drivers/messageDriver'
 
 const layout: cytoscape.LayoutOptions & { grid: boolean } = {
   name:                        "breadthfirst",
@@ -52,61 +52,21 @@ function initCytoConfig(): cytoscape.CytoscapeOptions {
       style: {
         'label': 'data(label)',
         'width': 4,
-        'opacity': 0.05,
+        'opacity': 1,
         "border-width": 3,
         "border-style": "solid",
         "border-color": "white",
         'target-arrow-shape': 'triangle',
-        'line-color': '#333333',
-        'target-arrow-color': '#333333',
+        'line-color': '#cccccc',
+        'target-arrow-color': '#cccccc',
         'curve-style': 'bezier'
       },
     }, {
-      selector: '.highlighted',
+      selector: ':selected',
       style: {
         'opacity': 1,
         'background-color': '#87ceff',
         'line-color': '#87ceff'
-      }
-    }, {
-      selector: '.highlightedPredecessor',
-      style: {
-        'opacity': 1,
-        'background-color': '#7fffd4',
-        'line-color': '#7fffd4'
-      }
-    }, {
-      selector: '.highlightedSuccessor',
-      style: {
-        'opacity': 1,
-        'background-color': '#f08080',
-        'line-color': '#f08080'
-      }
-    }, {
-      selector: ':parent',
-      style: {
-        'opacity': 1,
-        'background-color': "#white",
-        "border-width": 6,
-        "border-style": "solid",
-        "border-color": "#333333",
-        'font-size': '30px'
-      }
-    }, {
-      selector: '.zapLinger',
-      style: {
-        'opacity': 1,
-        'border-color': "#e9967a",
-        'background-color': '#e9967a',
-        'line-color': '#e9967a'
-      }
-    }, {
-      selector: '.zap',
-      style: {
-        'opacity': 1,
-        'border-color': "#cd0000",
-        'background-color': '#cd0000',
-        'line-color': '#cd0000'
       }
     }]
   }
@@ -123,6 +83,46 @@ function buildCytoInit(elem: HTMLElement, cytoConfig: cytoscape.CytoscapeOptions
   }
 }
 
+function setUpCxtMenu(): MutationRequest {
+  return {
+    category: 'components',
+    action: 'shamefullyMutate',
+    data: (graph: cytoscape.Core): void => {
+      let defaults = {
+        menuRadius: 100,
+        selector: 'node',
+        commands: [{
+	  content: 'Select Tree',
+	  select: (ele: cytoscape.SingularElementReturnValue): void => {
+            ele.select()
+            ele.successors().select()
+	  }
+	}, {
+	  content: 'Unselect Tree',
+	  select: (ele: cytoscape.SingularElementReturnValue): void => {
+            ele.unselect()
+            ele.successors().unselect()
+	  }
+        }],
+        fillColor: 'rgba(0, 0, 0, 0.75)', // the background colour of the menu
+        activeFillColor: 'rgba(1, 105, 217, 0.75)', // the colour used to indicate the selected command
+        activePadding: 20, // additional size in pixels for the active command
+        indicatorSize: 24, // the size in pixels of the pointer to the active command
+        separatorWidth: 3, // the empty spacing in pixels between successive commands
+        spotlightPadding: 4, // extra spacing in pixels between the element and the spotlight
+        minSpotlightRadius: 24, // the minimum radius in pixels of the spotlight
+        maxSpotlightRadius: 38, // the maximum radius in pixels of the spotlight
+        openMenuEvents: 'cxttapstart taphold', // space-separated cytoscape events that will open the menu; only `cxttapstart` and/or `taphold` work here
+        itemColor: 'white', // the colour of text in the command's content
+        itemTextShadowColor: 'transparent', // the text shadow colour of the command's content
+        zIndex: 9999, // the z-index of the ui div
+        atMouse: false // draw menu at mouse position
+      };
+
+      (graph as unknown as { cxtmenu: (arg: object) => void}).cxtmenu( defaults );
+    }
+  }
+}
 function patchGraph([message, _]: [PatchGraphMessage, any]): MutationRequest {
   return {
     category: 'components',
@@ -178,18 +178,34 @@ export interface Sources {
 }
 
 export interface Sinks {
-  cyto: Stream<CytoRequest>
+  cyto: Stream<CytoRequest>,
+  state: Stream<Reducer<State>>
 }
 
 export default function main(sources: Sources): Sinks {
   const componentsElement$    = sources.DOM.select('.components').element().take(1) as Stream<Element>;
   const componentsGraph$      = sources.cyto.with('components').map(e => e.graph).take(1)
+  const componentsVisible$    = (sources.DOM.select('.components').element() as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).compose(dropRepeats()).filter(b => b)
+
   const initComponentsGraph$  = componentsElement$.map((elem: Element) => buildCytoInit(elem as HTMLElement, initCytoConfig()))
   const patchComponentsGraph$ = (sources.messages.filter(m => m.action == "patchGraph") as Stream<PatchGraphMessage>).compose(sampleCombine(componentsGraph$)).map(patchGraph)
-  const componentsVisible$ = (sources.DOM.select('.components').element() as Stream<Element>).map(el => (el as HTMLElement).offsetParent !== null).compose(dropRepeats()).filter(b => b)
-  const resizeComponents$ = componentsVisible$.map(resize)
+  const resizeComponents$     = componentsVisible$.map(resize)
+  // const toggleNode$ = sources.cyto.with('components').map(delegate => delegate.on('tap', 'node') as Stream<cytoscape.EventObject>).flatten().filter(e => (e.target && e.target.isNode && e.target.isNode())).map(highlightNodes)
+
+  const setParents$: Stream<Reducer<State>> = (sources.cyto.with('components').map(delegate => delegate.on('select unselect', 'node')).flatten() as Stream<cytoscape.EventObject>).map<Reducer<State>>(e => prev => {
+    const graph = e.cy
+    const nodes = graph.$('node:selected')
+
+    return {
+      ...prev as State,
+      parents: map(nodes, node => node.id())
+    }
+  })
+
+  const setUpCxtMenu$ = componentsGraph$.map(setUpCxtMenu)
 
   return {
-    cyto: xs.merge(initComponentsGraph$, patchComponentsGraph$, resizeComponents$)
+    cyto: xs.merge(initComponentsGraph$, setUpCxtMenu$, patchComponentsGraph$, resizeComponents$),
+    state: setParents$
   }
 }

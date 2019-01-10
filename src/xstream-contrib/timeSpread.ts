@@ -13,8 +13,8 @@ class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
 
   constructor(period$: Stream<number>, ins: Stream<T>) {
     this.ins = ins
-    this.out = null as any as Stream<Array<T>>
-      this.period$ = period$
+    this.out = null as any as Stream<Array<T>>;
+    this.period$ = period$;
     this.period = 20
     this.queue = []
     this.timeoutId = null
@@ -28,8 +28,8 @@ class TimeSpreadOperator<T> implements Operator<T, Array<T>> {
 
   public _stop(): void {
     this.ins._remove(this)
-    this.out = null as any as Stream<Array<T>>
-      this.queue = []
+    this.out = null as any as Stream<Array<T>>;
+    this.queue = []
     if (this.periodSubscription) { this.periodSubscription.unsubscribe() }
     this.timeoutId = null
   }

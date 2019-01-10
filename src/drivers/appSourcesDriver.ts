@@ -4,7 +4,6 @@ export type Sources = {
   [key: string]: any
 }
 
-
 function innerDriver(sources: Sources, sink$: Stream<Message>): Stream<Sources> {
   let sinkListener: any
 

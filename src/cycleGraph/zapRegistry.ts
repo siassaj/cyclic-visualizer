@@ -1,6 +1,8 @@
 import xs, { Stream, Listener } from 'xstream'
 import { each }                 from 'lodash'
 
+const zapData: Array<ZapData> = []
+
 export interface Record {
   id: string
   depth: number
@@ -23,13 +25,11 @@ export interface Zap {
 
 export default class ZapRegistry {
   private _presenceSet: Set<string>;
-  private _zapData: Array<ZapData>;
 
   public records: Array<Record>
 
   constructor() {
     this._presenceSet = new Set()
-    this._zapData     = []
     this.records      = []
   }
 
@@ -50,7 +50,11 @@ export default class ZapRegistry {
   }
 
   public setZapData(data: ZapData): number {
-    return this._zapData.push(data)
+    return zapData.push(data) - 1
+  }
+
+  public getZapData(id: number): any {
+    return zapData[id]
   }
 
   public getMappedZapStreams(): Stream<Zap> {
@@ -73,9 +77,5 @@ export default class ZapRegistry {
           },
       stop() {}
     })
-  }
-
-  public resetZapData(): void {
-    this._zapData = []
   }
 }

@@ -1,12 +1,15 @@
 import { Stream }                 from 'xstream'
-import { State }                  from './main'
 import { gradient2 }              from 'style/gradients'
 import { color, lighten, darken } from 'style/colors'
 import { style }                  from 'typestyle'
+import { px }                     from 'csx'
+import * as cytoscape             from 'cytoscape'
+import { map }                    from 'lodash'
+import { State }                  from './main'
 
 import {
   VNode,
-  h1, main, div, label, textarea, button, br, pre, input
+  h1, main, div, label, button, pre, input
 } from '@cycle/dom'
 
 interface Streams {
@@ -114,30 +117,62 @@ const s = {
 
   visible: style({
     display: 'block'
+  }),
+
+  selectedNodes: style({
+    background: 'white',
+    fontSize: '15px',
+    position: 'absolute',
+    border: '2px solid #ddd',
+    zIndex: 10
+  }),
+
+  selectedNode: style({
+    background: 'white',
+    margin: '20px',
+    width: '500px',
+    height: '400px',
+    overflow: 'scroll',
+    $nest: {
+      "& + &" : {
+        borderTop: '1px solid #ddd'
+      }
+    }
   })
 }
 
 export default function view(streams: Streams): Stream<VNode> {
   const state$ = streams.parent
 
-  return state$.map(state => main(`.${s.main}`, [
-    div(`.${s.controlPanel}.controlPanel`, [
-      h1(`.${s.header}`, "Cyclic Visualizer"),
-      button(`.${s.controlButton}.selectAppState`, "State Store"),
-      button(`.${s.controlButton}.selectComponents`, "Component Hierarchy"),
-      button(`.${s.controlButton}.selectGraph`, "Application Graph")
-    ]),
-    pre(`.${s.appStatePanel}.appStatePanel`, { class: { [s.visible]: state.visiblePanel == "appState" } }, JSON.stringify(state.appState, null, 2)),
-    div(`.${s.componentsPanel}.componentsPanel`, { class: { [s.visible]: state.visiblePanel == "components" } }, [
-      div(`.${s.components}.components`)
-    ]),
-    div(`.${s.graphPanel}.graphPanel`, { class: { [s.visible]: state.visiblePanel == "graph" } }, [
-      label([
-        `Zap Speed: ${state.zapSpeed}`,
-        input(`.${s.zapSlider}.zapSlider`, { props: { type: "range", min: 0, max: 100, value: 40.96324348220412}})
+  return state$.map(state => {
+    return main(`.${s.main}`, [
+      div(`.${s.controlPanel}.controlPanel`, [
+        h1(`.${s.header}`, "Cyclic Visualizer"),
+        button(`.${s.controlButton}.selectAppState`, "State Store"),
+        button(`.${s.controlButton}.selectComponents`, "Component Hierarchy"),
+        button(`.${s.controlButton}.selectGraph`, "Application Graph")
       ]),
+      pre(`.${s.appStatePanel}.appStatePanel`, { class: { [s.visible]: state.visiblePanel == "appState" } }, JSON.stringify(state.appState, null, 2)),
+      div(`.${s.componentsPanel}.componentsPanel`, { class: { [s.visible]: state.visiblePanel == "components" } }, [
+        div(`.${s.components}.components`)
+      ]),
+      div(`.${s.graphPanel}.graphPanel`, { class: { [s.visible]: state.visiblePanel == "graph" } }, [
+        label([
+          `Zap Speed: ${state.zapSpeed}`,
+          input(`.${s.zapSlider}.zapSlider`, { props: { type: "range", min: 0, max: 100, value: 40.96324348220412}})
+        ]),
+        div(`.${s.selectedNodes}.selectedNodes`, map(state.selectedNodes, (node: cytoscape.NodeSingular) => {
+          const position = node.renderedPosition()
 
-      div(`.${s.graph}.graph`)
+          return div(`.${s.selectedNode}.selectedNode`, [
+            pre(JSON.stringify({
+              node: node.data(),
+              data: state.zapData[node.id()]
+            }, null, 2))
+          ])
+        })),
+        div(`.${s.graph}.graph`)
+      ])
     ])
-  ]))
+  })
 }

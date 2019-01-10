@@ -1,7 +1,7 @@
-import { Stream, Operator }    from 'xstream'
-import { max, map, nth, last } from 'lodash'
-import objectId                from './objectId'
-import ZapRegistry, { Zap }    from './zapRegistry'
+import { Stream, Operator }             from 'xstream'
+import { max, map, nth, last, isEmpty } from 'lodash'
+import objectId                         from './objectId'
+import ZapRegistry, { Zap }             from './zapRegistry'
 
 type CycleSource = { type: string }
 type CycleSink   = { type: string }
@@ -35,8 +35,6 @@ export type Section = {
 
 interface GOperator<T = any, R = any> extends Operator<Stream<T>, R> {}
 
-type DevtoolStream = Stream<any> & { _isCycleSource?: string, _visualizeSinkKey: string | undefined }
-
 type SectionGraphConfig = {
   sourceLabel: string
   sourceId:    string
@@ -50,6 +48,7 @@ export type Node = {
   type: 'parent' | 'cycleSource' | 'stream' | 'cycleSink' | 'operator';
   linkage?: 'ins' | 'insArr' | 'inner';
   parent?: string | undefined;
+  parents: Array<string>;
   label: string;
   width?: number;
   height?: number;
@@ -85,11 +84,15 @@ function registerObjectIds(section: Section): SectionGraphConfig {
     sinkId = objectId(sink).toString()
   }
 
-  const sinkKey = (<DevtoolStream>stream)._visualizeSinkKey
+  const visualizerConfig = (<VisualizedStream>stream)._CyclicVisualizer
+  const cycleSourceName = (<VisualizedStream>stream)._isCycleSource
+  const sinkKey = visualizerConfig ? visualizerConfig.sinkKey : undefined
+  const streamLabel = !isEmpty(cycleSourceName) ? cycleSourceName : sinkKey
+
   return {
     sourceLabel: sinkKey ? `${source.type}: ${sinkKey}` : source.type,
     sourceId:    sourceId,
-    streamLabel: (<DevtoolStream>stream)._isCycleSource || sinkKey || "",
+    streamLabel: streamLabel || "",
     sinkLabel:   sink.type,
     sinkId:      sinkId
   }
@@ -114,6 +117,7 @@ function registerPossibleParent(graph: Graph, section: Section): void {
   const parent: Node = {
     id:    sectionParent.id,
     label: sectionParent.name,
+    parents: [],
     type:  'parent'
   }
 
@@ -136,16 +140,20 @@ function registerPossibleParent(graph: Graph, section: Section): void {
 }
 
 
+function getParentNames(hierarchy: ParentHierarchy): Array<string> {
+  return map(hierarchy, parent => parent.name)
+}
 
 function registerGraphElements(graph: Graph, section: Section, config: SectionGraphConfig): void {
 
   const sourceNode: Node = {
-    id:    config.sourceId.toString(),
-    type:  section.isInitial ? "cycleSource" : "operator",
-    label: section.isInitial ? config.streamLabel : config.sourceLabel,
-    parent: section.isInitial ? "cycleSources" : getParentId(section.parentHierarchy),
-    width: 100,
-    height: 100
+    id:      config.sourceId.toString(),
+    type:    section.isInitial ? "cycleSource" : "operator",
+    label:   section.isInitial ? config.streamLabel : config.sourceLabel,
+    parent:  section.isInitial ? "cycleSources" : getParentId(section.parentHierarchy),
+    parents: getParentNames(section.parentHierarchy),
+    width:   100,
+    height:  100
   }
 
   // const streamNode: Node = {
@@ -159,20 +167,21 @@ function registerGraphElements(graph: Graph, section: Section, config: SectionGr
   // }
 
   const sinkNode: Node = {
-    id:    config.sinkId.toString(),
-    type:  section.isFinal ? "cycleSink" : "operator",
-    label: config.sinkLabel,
-    parent: section.isFinal ? "cycleSinks" : getParentId(section.parentHierarchy),
-    width: 100,
-    height: 100
+    id:      config.sinkId.toString(),
+    type:    section.isFinal ? "cycleSink" : "operator",
+    label:   config.sinkLabel,
+    parent:  section.isFinal ? "cycleSinks" : getParentId(section.parentHierarchy),
+    parents: getParentNames(section.parentHierarchy),
+    width:   100,
+    height:  100
   }
 
   const edge: Edge = {
     id:       `${sourceNode.id}.${sinkNode.id}`,
     sourceId: sourceNode.id,
     targetId: sinkNode.id,
-    label: config.streamLabel,
-    type: section.type
+    label:    config.streamLabel,
+    type:     section.type
   }
 
   graph.setNode(sourceNode)
@@ -242,6 +251,10 @@ export default class Graph {
 
   public getZaps(): Stream<Zap> {
     return this._zapRegistry.getMappedZapStreams()
+  }
+
+  public getZapData(id: number): any {
+    return this._zapRegistry.getZapData(id)
   }
 }
 

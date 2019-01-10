@@ -1,7 +1,7 @@
 import { Stream }                                        from 'xstream'
 import { Reducer }                                       from '@cycle/state'
 import { State }                                         from '../main'
-import { Source as MessagingSource, UpdateStateMessage } from '../messagingDriver'
+import { Source as MessagingSource, UpdateStateMessage } from 'drivers/messageDriver'
 
 export interface Sources {
   messages: MessagingSource

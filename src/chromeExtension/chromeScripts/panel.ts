@@ -3,8 +3,8 @@ import {withState}             from '@cycle/state'
 import { timeDriver }          from "@cycle/time"
 import { makeDOMDriver }       from "@cycle/dom"
 import { run }                 from '@cycle/run'
-import { makeCytoscapeDriver } from 'devtoolApp/cytoscapeDriver'
-import makeMessagingDriver     from 'devtoolApp/messagingDriver'
+import { makeCytoscapeDriver } from 'drivers/cytoscapeDriver'
+import makeMessageDriver       from 'drivers/messageDriver'
 import main                    from 'devtoolApp/main'
 
 const wrappedMain = withState(main)
@@ -20,7 +20,7 @@ function restartApp(): void {
     time:     () => Time,
     DOM:      makeDOMDriver(".cycleApp"),
     cyto:     makeCytoscapeDriver(),
-    messages: makeMessagingDriver(window)
+    messages: makeMessageDriver(window, 'panel')
   })
 }
 

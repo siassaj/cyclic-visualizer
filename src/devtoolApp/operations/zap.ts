@@ -4,9 +4,8 @@ import { StateSource, Reducer }        from '@cycle/state'
 import { DOMSource }                   from '@cycle/dom'
 import { State }                       from '../main'
 import {
-  Request as MessagingRequest,
   SetZapSpeedMessage
-}                                      from '../messagingDriver'
+}                                      from 'drivers/messageDriver'
 
 
 const scale: number = Math.log(1500) / 100
@@ -22,7 +21,7 @@ export interface Sources {
 
 export interface Sinks {
   state: Stream<Reducer<State>>;
-  messages: Stream<MessagingRequest>;
+  messages: Stream<SetZapSpeedMessage>;
 }
 
 export default function main(sources: Sources): Sinks {

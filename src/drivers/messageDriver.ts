@@ -1,56 +1,69 @@
 import xs, { Producer, Listener, Stream } from 'xstream'
 import { Patch }                          from 'cycleGraph/diff'
 
-export interface PatchGraphMessage {
+export interface Message {
+  target: string
+  action: string
+  payload: any
+}
+
+export interface PatchGraphMessage extends Message {
   target: "panel"
   action: 'patchGraph',
   payload: Patch
 }
 
-export interface UpdateStateMessage {
+export interface UpdateStateMessage extends Message {
   target: "panel"
   action: 'updateState',
   payload: any
 }
 
-export interface ZapMessage {
+export interface ZapMessage extends Message {
   target: "panel",
   action: "zap",
   payload: { id: string, depth: number, zapDataId: number }
 }
 
-export interface SetZapSpeedMessage {
+export interface ZapDataMessage extends Message {
+  target: "panel",
+  action: "zapData",
+  payload: { id: string, zapDataId: number, zapData: any }
+}
+
+export interface SetZapSpeedMessage extends Message {
   target: "pageScript",
   action: "setZapSpeed",
   payload: number
 }
 
-export type InboundMessage = PatchGraphMessage | UpdateStateMessage | ZapMessage
-
-export type OutboundMessage = SetZapSpeedMessage
-
-export interface Source extends Stream<InboundMessage> {}
-
-export interface Request extends OutboundMessage {}
+export interface GetZapDataMessage extends Message{
+  target: "pageScript",
+  action: "getZapData",
+  payload: {
+    nodeId: string,
+    zapDataId: number
+  }
+}
 
 interface MyListener<T> extends Producer<T> {
   messageListener: (e: MessageEvent) => void,
   listener: (e: any) => void
 }
 
-export default function makeMessagingDriver(window: Window) {
-  return function(sink$: Stream<OutboundMessage>) {
+export type Source = Stream<Message>
+
+export default function makeMessageDriver(window: Window, target: string) {
+  return function(sink$: Stream<Message>) {
 
     sink$.addListener({
-      next: (message: OutboundMessage) => { window.postMessage(message, '*') }
+      next: (message: Message) => { window.postMessage(message, '*') }
     })
 
     let listener: Listener<any>
 
     let messageListener = (e: MessageEvent): void => {
-      if (e.data.target == 'panel') {
-        listener.next(e.data)
-      }
+      if (e.data.target == target) { listener.next(e.data) }
     }
 
     return xs.create(<MyListener<any>>{

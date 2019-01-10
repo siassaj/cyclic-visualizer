@@ -1,6 +1,6 @@
-import makeMessagingDriver               from 'pageApp/messagingDriver'
-import makeAppSinksDriver, { Sinks }     from 'pageApp/appSinksDriver'
-import makeAppSourcesDriver, { Sources } from 'pageApp/appSourcesDriver'
+import makeMessageDriver                 from 'drivers/messageDriver'
+import makeAppSinksDriver, { Sinks }     from 'drivers/appSinksDriver'
+import makeAppSourcesDriver, { Sources } from 'drivers/appSourcesDriver'
 import { run }                           from '@cycle/run'
 import main                              from 'pageApp/main'
 
@@ -22,7 +22,7 @@ function setUp(): void {
     run(main, {
       appSources: makeAppSourcesDriver(sources),
       appSinks:   makeAppSinksDriver(sinks),
-      messages:   makeMessagingDriver(window)
+      messages:   makeMessageDriver(window, 'pageScript')
     })
   }
 }
