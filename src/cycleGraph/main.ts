@@ -1,7 +1,10 @@
 import { Stream, Operator }             from 'xstream'
-import { max, map, nth, last, isEmpty } from 'lodash'
 import objectId                         from './objectId'
 import ZapRegistry, { Zap, ZapData }    from './zapRegistry'
+import {
+  max, map, nth, last, isEmpty,
+  range, filter, each, sortBy
+} from 'lodash'
 
 type CycleSource = { type: string }
 type CycleSink   = { type: string }
@@ -52,6 +55,8 @@ export type Node = {
   label: string;
   width?: number;
   height?: number;
+  depth: number;
+  breadth: number;
 }
 
 export type Edge = {
@@ -118,7 +123,9 @@ function registerPossibleParent(graph: Graph, section: Section): void {
     id:    sectionParent.id,
     label: sectionParent.name,
     parents: [],
-    type:  'parent'
+    type:  'parent',
+    depth: section.depth + 1,
+    breadth: section.breadth
   }
 
   graph.setNode(parent)
@@ -153,7 +160,9 @@ function registerGraphElements(graph: Graph, section: Section, config: SectionGr
     parent:  section.isInitial ? "cycleSources" : getParentId(section.parentHierarchy),
     parents: getParentNames(section.parentHierarchy),
     width:   100,
-    height:  100
+    height:  100,
+    depth:   section.depth + 1,
+    breadth: section.breadth
   }
 
   // const streamNode: Node = {
@@ -173,7 +182,9 @@ function registerGraphElements(graph: Graph, section: Section, config: SectionGr
     parent:  section.isFinal ? "cycleSinks" : getParentId(section.parentHierarchy),
     parents: getParentNames(section.parentHierarchy),
     width:   100,
-    height:  100
+    height:  100,
+    depth:   section.depth,
+    breadth: section.breadth
   }
 
   const edge: Edge = {
@@ -246,6 +257,21 @@ export default class Graph {
 
   public rebaseDepths(): void {
     const maxDepth = max(map(this._sections, (section: Section) => section.depth)) || 0
+
+    // set all cycle sources on right hand side to same maximum depth
+    each(filter(this.nodes, node => node.type == 'cycleSource'), node => node.depth = maxDepth);
+
+    // Reverse Node Depths So sources Start at 0
+    each(this.nodes, node => node.depth = maxDepth - node.depth);
+
+    // spread everything out width wise
+    each(range(maxDepth), (depth: number) => {
+      const nodes = sortBy(filter(this.nodes, section => section.depth == depth), 'breadth')
+      if (isEmpty(nodes)) { return }
+
+      each(nodes, (node, idx) => node.breadth = idx);
+    });
+
     this._zapRegistry.rebaseDepths(maxDepth)
   }
 

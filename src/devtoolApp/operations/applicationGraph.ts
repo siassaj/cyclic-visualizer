@@ -44,6 +44,12 @@ const layout: cytoscape.LayoutOptions & { klay: { [k: string]: any } } = {
   }
 }
 
+// const layout: cytoscape.LayoutOptions = {
+//   name: "preset",
+//   fit:   false,
+// }
+
+
 function initCytoConfig(): cytoscape.CytoscapeOptions {
   return {
     boxSelectionEnabled: true,
@@ -160,7 +166,15 @@ function patchGraph([message, _]: [PatchGraphMessage, any]): MutationRequest {
       const additionalNodes = map(filter(message.payload, (op => op.op == "add" && op.type == "node" && op.element.type != "parent")), (op) => {
         const node = (<NodePatchOperation>op).element
 
-        return { group: "nodes", data: { id: node.id, _parent: node.parent, parents: node.parents, parent: node.parent, label: node.label } } as cytoscape.ElementDefinition
+        const elem = {
+          group: "nodes",
+          data: { id: node.id, _parent: node.parent, parents: node.parents, parent: node.parent, label: node.label },
+          position: { x: node.depth * 200, y: node.breadth * 200 }
+        } as cytoscape.ElementDefinition
+
+        console.log(elem)
+
+        return elem
       })
 
       const additionalEdges = map(filter(message.payload, (patch => patch.op == "add" && patch.type == "edge" && patch.element.type != "parent")), (op) => {
