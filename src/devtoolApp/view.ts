@@ -15,6 +15,19 @@ import {
 interface Streams {
   parent: Stream<State>;
 }
+function getCircularReplacer() {
+  const seen = new WeakSet();
+
+  return (key: any, value: any) => {
+    if (typeof value === "object" && value !== null) {
+      if (seen.has(value)) {
+        return;
+      }
+      seen.add(value);
+    }
+    return value;
+  }
+}
 
 const s = {
   main: style({
@@ -130,7 +143,7 @@ const s = {
   selectedNode: style({
     background: 'white',
     margin: '20px',
-    width: '500px',
+    width: '550px',
     height: '400px',
     overflow: 'scroll',
     $nest: {
@@ -165,10 +178,10 @@ export default function view(streams: Streams): Stream<VNode> {
           const position = node.renderedPosition()
 
           return div(`.${s.selectedNode}.selectedNode`, [
-            // pre(JSON.stringify({
-            //   node: node.data(),
-            //   data: state.zapData[node.id()]
-            // }, null, 2))
+            pre(JSON.stringify({
+              node: node.data(),
+              data: state.zapData[node.id()]
+            }, getCircularReplacer(), 2))
           ])
         })),
         div(`.${s.graph}.graph`)
