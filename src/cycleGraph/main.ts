@@ -249,8 +249,8 @@ export default class Graph {
     this._zapRegistry.rebaseDepths(maxDepth)
   }
 
-  public getZaps(): Stream<Zap> {
-    return this._zapRegistry.getMappedZapStreams()
+  public getZaps(speed$: Stream<number>): Stream<Zap> {
+    return this._zapRegistry.getMappedZapStreams(speed$)
   }
 
   public getZapData(type: "zapDataId" | "nodeId" , id: number | string): ZapData | undefined {

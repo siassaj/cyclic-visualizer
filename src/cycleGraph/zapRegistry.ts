@@ -1,13 +1,16 @@
-import xs, { Stream, Listener } from 'xstream'
+import xs, { Stream, Listener, Subscription } from 'xstream'
 import { each, findLast }       from 'lodash'
 
 const zapData: Array<ZapData> = []
 
+type ZappedStream<T> = Stream<T> & { _originalN: Function | undefined }
+
 export interface Record {
   id: string
   depth: number
-  listener?: Listener<any>
-    stream: Stream<any>
+  listener?: Listener<any>;
+  streamNextFunction?: Function
+  stream: Stream<any>
 }
 
 export interface ZapData {
@@ -25,11 +28,14 @@ export interface Zap {
 
 export default class ZapRegistry {
   private _presenceSet: Set<string>;
+  private _zapSpeed: number;
+  private _speedSubscription: Subscription | undefined;
 
   public records: Array<Record>
 
   constructor() {
     this._presenceSet = new Set()
+    this._zapSpeed    = 20
     this.records      = []
   }
 
@@ -61,12 +67,27 @@ export default class ZapRegistry {
     }
   }
 
-  public getMappedZapStreams(): Stream<Zap> {
+  public setSpeedStream(speed$: Stream<number>):void {
+    if (this._speedSubscription) { this._speedSubscription.unsubscribe() }
+
+    this._speedSubscription = speed$.subscribe({ next: (speed: number) => this._zapSpeed = speed })
+  }
+
+  public getMappedZapStreams(speed$: Stream<number>): Stream<Zap> {
+    this.setSpeedStream(speed$)
 
     return xs.create({
       start: (listener) => {
         each(this.records, (record: Record) => {
-          record.stream.setDebugListener({
+          const stream = record.stream as ZappedStream<any>
+
+          // stream may have already been worked on previously
+          if (!stream._originalN) {
+            stream._originalN = stream._n
+            stream._n = (t) => setTimeout(() => (stream._originalN as Function)(t), this._zapSpeed)
+          }
+
+          stream.setDebugListener({
             next: val => {
               const zapDataId = this.setZapData({ nodeId: record.id, payload: val, type: "next" })
               listener.next({ id: record.id, depth: record.depth, zapDataId: zapDataId, type: "next" })
@@ -77,8 +98,8 @@ export default class ZapRegistry {
             },
             complete: () => listener.next({id: record.id, depth: record.depth, type: "complete"})
           })
-        })
-          },
+        });
+      },
       stop() {}
     })
   }

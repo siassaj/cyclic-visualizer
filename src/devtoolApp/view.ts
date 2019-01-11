@@ -165,10 +165,10 @@ export default function view(streams: Streams): Stream<VNode> {
           const position = node.renderedPosition()
 
           return div(`.${s.selectedNode}.selectedNode`, [
-            pre(JSON.stringify({
-              node: node.data(),
-              data: state.zapData[node.id()]
-            }, null, 2))
+            // pre(JSON.stringify({
+            //   node: node.data(),
+            //   data: state.zapData[node.id()]
+            // }, null, 2))
           ])
         })),
         div(`.${s.graph}.graph`)
