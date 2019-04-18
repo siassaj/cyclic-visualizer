@@ -7,7 +7,7 @@
     "watch": "node_modules/.bin/jest --watch",
     "lint": "node_modules/.bin/tslint -c tslint.json .src/*.ts .src/**/*.ts",
     "cleanDist": "rm -rf dist/*",
-    "copyAssets": "cp -r assets/* dist/",
+    "copyAssets": "mkdir -p dist/ && cp -r assets/* dist/",
     "compile": "node_modules/.bin/tsc",
     "distChromeBackground": "NODE_PATH=$NODE_PATH:build node_modules/.bin/browserify build/chromeExtension/chromeScripts/background.js -s background --outfile dist/chromeExtension/chromeScripts/background.js",
     "distChromeDevtoolsPage": "NODE_PATH=$NODE_PATH:build node_modules/.bin/browserify build/chromeExtension/chromeScripts/devtoolsPage.js -s devtoolsPage --outfile dist/chromeExtension/chromeScripts/devtoolsPage.js",
