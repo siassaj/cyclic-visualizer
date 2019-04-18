@@ -1,4 +1,4 @@
-# Cyclic Visualizer Devtool
+
 For CycleJS applications
 
 
@@ -27,23 +27,43 @@ $ npm run build
 1. open to cyclic-visualizer/dist/chromeExtension
 
 
-### Tool your components & operations with visualize function
+### Tool your components with visualize function
 1. copy dist/visualize.js or src/visualize.ts to your app's source dir
 1. ```import visualize, { setSources } from 'path/to/visualize'```
 1. use ```setSources(sources)``` ONCE within root level main function
-1. use ```visualize(sinks, { scope: 'name of component or operation', prefix: 'some prefix such as Component or Operation' })```
+1. use ```visualize(sinks, { scope: '<name of component>', prefix: '<some prefix tag that is useful to you>' })```
 
 visualize will be added to npm at some point, but copy it over for now.
 
 ```typescript
-//Example that will visualize 2 components & 2 operations
+// BASIC EXAMPLE
+//
+function main(sources) {
+  const navigation  = isolate(Navigation, 'nav')(sources)
+  const ctaForm     = isolate(CTAForm,    'ctaForm')(sources)
 
+  visualize(navigation, { scope: 'nav' })
+  visualize(navigation, { scope: 'ctaForm' })
+
+  // ... rest of function
+}
+
+// EXAMPLE USING PREFIX
+//
+// Here we use the 'prefix' attribute of visualize with Component and Operation
+// Component means a cyclejs component that sinks to DOM
+// Operation means a cyclejs component that does _not_ sink to DOM,
+//   used to isolate discrete stream based operations such as sinking to
+//   a parallax driver on an animation driver.
+
+// Convenience function for mounting & visualizing Components
 function mountComponent(component, scope, sources) {
   const sinks = isolate(component, scope)(sources)
   visualize(sinks, { scope: scope, prefix: "Component" })
   return sinks
 }
 
+// Convenience function for mounting & visualizing Operations
 function mountOperation(operation, scope, sources) {
   const sinks = component(sources)
   visualize(sinks, { scope: scope, prefix: "Operation" })
@@ -54,8 +74,10 @@ function main(sources) {
   const navigation  = mountComponent(Navigation, 'nav',     sources)
   const ctaForm     = mountComponent(CTAForm,    'ctaForm', sources)
 
-  const parallaxBG  = mountOperation(ParallaxBG,  'parallaxBG',  sources)
+  const parallaxBG  = mountOperation(ParallaxBackground,  'parallaxBG',  sources)
   const animateLogo = mountOperation(AnimateLogo, 'animateLogo', sources)
+
+  // ... rest of function
 }
 ```
 
