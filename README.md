@@ -1,6 +1,7 @@
+# Cyclic Visualizer Devtool
+For cyclejs apps
 
-For CycleJS applications
-
+[Cyclic Visualizer WIP Playlist](https://www.youtube.com/playlist?list=PLQL3wlBb5AvQpX8kP1pOgPZr4alADVAHK)
 
 ## Testing
 Testing should come first, even though I'm an ass that didn't do much of it.
@@ -76,17 +77,8 @@ function main(sources) {
 
   const parallaxBG  = mountOperation(ParallaxBackground,  'parallaxBG',  sources)
   const animateLogo = mountOperation(AnimateLogo, 'animateLogo', sources)
-
-  // ... rest of function
 }
 ```
-
-
-### Watch these videos for an extremely basic view of how to use this
-
-[Cyclic Visualizer WIP Playlist](https://www.youtube.com/playlist?list=PLQL3wlBb5AvQpX8kP1pOgPZr4alADVAHK)
-
-Then make some better videos!
 
 
 ## Project Structure
